@@ -6,6 +6,8 @@ import { Chair } from '../objects/Chair.js';
 import { StudentDesk } from '../objects/StudentDesk.js';
 import { Door } from '../objects/Door.js';
 import { Blackboard } from '../objects/Blackboard.js';
+import { LightCircuit } from '../objects/LightCircuit.js';
+import { LightSwitch } from '../objects/LightSwitch.js';
 
 export function seatingSlots(p, m) {
   const sections = new HStack(p.aisleWidth);
@@ -33,9 +35,9 @@ export function tierSlots(p, m) {
   return steps.build([0, 0, p.seatStartZ]);
 }
 export class Classroom {
-  constructor(models, values = DEFAULTS, { outsideLanding = true } = {}) {
+  constructor(models, values = DEFAULTS, { outsideLanding = true, label = 'Classroom' } = {}) {
     this.params = normalizeParams(values); this.metrics = computeMetrics(this.params);
-    this.outsideLanding = outsideLanding;
+    this.outsideLanding = outsideLanding; this.label = label;
     this.root = new Group(); this.root.name = 'lecture-hall'; this.objects = [];
     try { this.build(models); } catch (error) { for (const o of this.objects) o.dispose(); throw error; }
   }
@@ -47,6 +49,7 @@ export class Classroom {
     for (const object of this.objects) {
       for (const collider of object.colliders) collider.box.translate(delta);
       if (object.seat) object.seat.add(delta);
+      if (object.pickBox) object.pickBox.translate(delta);
     }
     return this;
   }
@@ -89,10 +92,21 @@ export class Classroom {
       const start = m.doorCenterZ + 0.65;
       this.box('side-wainscot', [x, 0.42, (start + m.zBack) / 2], [0.035, 0.84, m.zBack - start], C.trim, { solid: false });
     }
+    const fixtures = [];
     for (const x of [-m.seatingWidth / 3, 0, m.seatingWidth / 3]) {
       const strip = this.box('ceiling-light', [x, p.roomHeight - 0.03, m.centerZ], [0.12, 0.04, m.roomDepth - 2], '#fff5d8', { solid: false });
       strip.mesh.material.emissive.set('#fff1cb'); strip.mesh.material.emissiveIntensity = 1;
+      fixtures.push(strip.mesh.material);
     }
+    const height = p.roomHeight - 0.25;
+    const distance = Math.max(9, Math.hypot(m.roomWidth / 2, m.roomDepth / 4, height) * 1.25);
+    this.lighting = this.add(new LightCircuit(this.label, [0.28, 0.72].map((fraction, i) => ({
+      position: [(i ? 1 : -1) * m.roomWidth * 0.18, height, m.zFront + m.roomDepth * fraction],
+      intensity: 65 * (height / 3.75) ** 2, distance,
+    })), fixtures));
+    this.lightSwitch = this.add(new LightSwitch(this.lighting,
+      [p.doorOnLeft ? m.xLeft + 0.035 : m.xRight - 0.035, 1.35, m.doorCenterZ + 0.85],
+      p.doorOnLeft ? Math.PI / 2 : -Math.PI / 2));
     this.root.updateMatrixWorld(true);
   }
 }

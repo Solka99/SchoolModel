@@ -29,8 +29,10 @@ test('converted door geometry fits both authored doorway orientations', () => {
 test('door debounces handle presses, opens fully, and remains solid while open', () => {
   const door = new Door(models, [0, 1, 0]); door.interact(); door.interact();
   door.update(1 / 120); assert.equal(door.angle, 0); assert.ok(door.handleAngle < 0);
+  assert.equal(door.canInteract, false); assert.match(door.message, /Opening/);
   for (let i = 0; i < 120; i++) door.update(1 / 120);
   assert.equal(door.angle, 95); assert.equal(door.open, true); assert.equal(door.colliders.length, 1);
+  assert.equal(door.canInteract, true); assert.equal(door.message, 'Close door');
   assert.ok(!door.panelCollider.box.isEmpty());
   door.interact(); for (let i = 0; i < 120; i++) door.update(1 / 120);
   assert.equal(door.angle, 0); assert.equal(door.handleAngle, 0);
@@ -42,6 +44,7 @@ test('closing door waits when the player obstructs its panel', () => {
   assert.equal(penetrates(player, door.panelCollider.box), false);
   door.interact(); for (let i = 0; i < 120; i++) door.update(1 / 120, player);
   assert.ok(door.angle > 0); assert.equal(penetrates(player, door.panelCollider.box), false);
+  assert.equal(door.blocked, true); assert.equal(door.canInteract, true); assert.match(door.detail, /obstructed/);
   for (let i = 0; i < 120; i++) door.update(1 / 120);
   assert.equal(door.angle, 0);
 });
@@ -51,6 +54,8 @@ test('actual desk mesh keeps its support fixed while the writing surface folds',
   desk.interact(); for (let i = 0; i < 60; i++) desk.update(1 / 120);
   assert.equal(desk.angle, 90); assert.equal(desk.supportCollider.box.equals(stand), true);
   assert.equal(desk.topCollider.box.equals(closed), false);
+  assert.ok(desk.pickBounds.containsBox(desk.supportCollider.box));
+  assert.ok(desk.pickBounds.containsBox(desk.topCollider.box));
   desk.interact(); for (let i = 0; i < 60; i++) desk.update(1 / 120);
   assert.equal(desk.angle, 0); assert.equal(desk.topCollider.box.equals(closed), true);
 });

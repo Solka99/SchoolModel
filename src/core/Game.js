@@ -58,6 +58,7 @@ export class Game {
     this.parameters?.sync(); this.hud.describeSchool(nextSchool); this.hud.mode('SCHOOL EXPLORER');
   }
   respawn() {
+    this.editor?.reset();
     this.interactions.clear(); this.input.clear();
     this.player.reset(new Vector3(...this.world.school.spawn));
     this.view.yaw = Math.PI / 2; this.view.pitch = 0; this.view.sync(this.player.feet);
@@ -67,9 +68,9 @@ export class Game {
     this.accumulator = 0; this.lastTime = null;
     if (locked && this.ready && !document.querySelector('dialog[open]')) {
       this.running = true; this.started = true; this.hud.playing(); this.view.sync(this.player.feet, this.player.eyeStepOffset);
-    } else { this.running = false; this.hud.paused(this.started); }
+    } else { this.running = false; this.interactions.clearTarget(); this.hud.paused(this.started); }
   }
-  pause() { this.running = false; this.accumulator = 0; this.input.unlock(); this.hud.paused(this.started); }
+  pause() { this.running = false; this.accumulator = 0; this.input.unlock(); this.interactions.clearTarget(); this.hud.paused(this.started); }
   command(command) {
     if (command === 'settings') this.parameters.open();
     if (command === 'debug') this.setDebug(!this.debug.enabled);
@@ -106,6 +107,6 @@ export class Game {
   }
   dispose() {
     this.disposed = true; cancelAnimationFrame(this.animation); window.removeEventListener('resize', this.resize);
-    this.input.dispose(); this.debug.clear(); this.world.clear(); this.models.dispose(); this.renderer.dispose();
+    this.input.dispose(); this.interactions.dispose(); this.debug.clear(); this.world.clear(); this.models.dispose(); this.renderer.dispose();
   }
 }

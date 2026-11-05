@@ -3,6 +3,7 @@ import { Group, Box3 } from 'three';
 export class SceneObject {
   constructor(name) {
     this.root = new Group(); this.root.name = name; this.root.userData.owner = this;
+    this.label = name.replaceAll('-', ' ');
     this.colliders = []; this.resources = new Set(); this.interactable = false;
   }
   addCollider(box, autoSteppable = false) {
@@ -16,5 +17,7 @@ export class SceneObject {
   update() {}
   interact() {}
   get message() { return ''; }
+  get detail() { return ''; }
+  get canInteract() { return this.interactable; }
   dispose() { for (const resource of this.resources) resource.dispose(); this.resources.clear(); }
 }

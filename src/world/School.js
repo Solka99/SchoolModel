@@ -11,7 +11,10 @@ export class School {
     this.spawn = this.layout.spawn;
     try {
       for (const spec of this.layout.rooms) {
-        const classroom = new Classroom(models, { ...this.params, doorOnLeft: spec.side === 1 }, { outsideLanding: false });
+        const classroom = new Classroom(models, { ...this.params, doorOnLeft: spec.side === 1 }, { outsideLanding: false, label: `Room ${spec.number}` });
+        for (const object of classroom.objects) {
+          if (object.interactable && object.kind !== 'light-switch') object.label += ` · Room ${spec.number}`;
+        }
         this.rooms.push({ ...spec, classroom }); this.objects.push(...classroom.objects);
         classroom.place(spec.origin); this.root.add(classroom.root);
         // Visible on the room side, to identify a classroom after entering it.

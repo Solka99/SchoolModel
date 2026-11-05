@@ -3,6 +3,8 @@ import { roomBox, PALETTE as C } from './prefabs.js';
 import { Door } from '../objects/Door.js';
 import { Sign } from '../objects/Sign.js';
 import { uncoveredSegments } from '../config/school.js';
+import { LightCircuit } from '../objects/LightCircuit.js';
+import { LightSwitch } from '../objects/LightSwitch.js';
 
 export class Corridor {
   constructor(models, layout) {
@@ -26,6 +28,7 @@ export class Corridor {
     }
     this.box('entrance-lintel', [0, (h + 2) / 2, -0.1], [1, h - 2, 0.2], C.wall);
     this.entranceDoor = this.add(new Door(models, [0, 1, -0.1], { alongZ: false, sign: 1 }));
+    this.entranceDoor.label = 'Main entrance door';
     this.box('entrance-landing', [0, -0.1, -3], [p.corridorWidth + 2, 0.2, 6], '#a6ad95');
     this.box('entrance-canopy', [0, 2.9, -1.4], [p.corridorWidth + 1.2, 0.14, 2.8], C.wood, { solid: false });
     this.add(new Sign('entrance-sign', [0, 2.5, -0.205], { title: 'SCHOOL RUSH', subtitle: 'MAIN ENTRANCE · GROUND FLOOR', width: 2.8, height: 0.6, yaw: Math.PI }));
@@ -50,10 +53,18 @@ export class Corridor {
       title: 'WELCOME TO SCHOOL', subtitle: rooms.map(r => `${r.number} ${r.subject}`).join('  ·  '), width: 2.2, height: 0.8, yaw: Math.PI / 2, light: true,
     }));
     this.box('corridor-guide-line', [0, 0.003, length / 2], [0.045, 0.005, length - 1], '#b9ab7d', { solid: false });
+    const fixtures = [];
     for (let z = 2; z < length; z += 4) {
       const light = this.box('corridor-light', [0, h - 0.03, z], [0.25, 0.04, 1.8], '#fff2d6', { solid: false });
       light.mesh.material.emissive.set('#fff0cf'); light.mesh.material.emissiveIntensity = 1;
+      fixtures.push(light.mesh.material);
     }
+    const count = Math.ceil(length / 10), height = h - 0.25;
+    this.lighting = this.add(new LightCircuit('Main corridor', Array.from({ length: count }, (_, i) => ({
+      position: [0, height, (i + 0.5) * length / count], intensity: 32 * (height / 3.75) ** 2,
+      distance: Math.max(9, height + 4),
+    })), fixtures));
+    this.lightSwitch = this.add(new LightSwitch(this.lighting, [half - 0.035, 1.35, 4.8], -Math.PI / 2));
   }
   add(object) { this.objects.push(object); this.root.add(object.root); return object; }
   box(name, center, size, color, options) { return this.add(roomBox(name, center, size, color, options)); }

@@ -6,6 +6,7 @@ import { penetrates } from '../physics/Aabb.js';
 export class Door extends SceneObject {
   constructor(models, center, { alongZ = true, sign = 1 } = {}) {
     super('door'); this.kind = 'door'; this.interactable = true; this.dynamic = true;
+    this.label = 'Door'; this.blocked = false;
     this.angle = 0; this.handleAngle = 0; this.open = false; this.pending = false; this.hold = 0;
     this.sign = sign;
     this.root.position.set(center[0] - (alongZ ? 0 : 0.5), center[1] - 1, center[2] + (alongZ ? 0.5 : 0));
@@ -22,13 +23,23 @@ export class Door extends SceneObject {
     this.panelCollider = this.addCollider(new Box3()); this.refresh();
   }
   refresh() { this.root.updateMatrixWorld(true); this.panelCollider.box.copy(this.meshBounds(this.panel)); }
-  get message() { return this.open ? 'Close door' : 'Open door'; }
+  get moving() { return this.pending || Math.abs(this.angle - (this.open ? 95 : 0)) > 0.05; }
+  get canInteract() { return !this.pending && (!this.moving || this.blocked); }
+  get message() {
+    if (this.moving && !this.blocked) return this.open || this.pending ? 'Opening door…' : 'Closing door…';
+    return this.open ? 'Close door' : 'Open door';
+  }
+  get detail() {
+    if (this.blocked) return 'Doorway obstructed · step clear or reverse the door';
+    return this.moving ? 'Wait for the door to finish moving' : 'Open the door before walking through';
+  }
   interact() {
-    if (this.pending) return;
+    if (!this.canInteract) return;
     if (this.open) this.open = false;
     else { this.pending = true; this.hold = 0; }
   }
   update(dt, playerBox) {
+    this.blocked = false;
     if (this.pending) {
       this.handleAngle = approach(this.handleAngle, -25, 300 * dt);
       if (this.handleAngle === -25) { this.open = true; this.pending = false; this.hold = 0.04; }
@@ -40,6 +51,7 @@ export class Door extends SceneObject {
     if (previous === this.angle) return;
     this.swing.rotation.y = MathUtils.degToRad(this.angle) * this.sign; this.refresh();
     if (playerBox && penetrates(playerBox, this.panelCollider.box)) {
+      this.blocked = true;
       this.angle = previous; this.swing.rotation.y = MathUtils.degToRad(previous) * this.sign; this.refresh();
     }
   }

@@ -14,15 +14,21 @@ export class HUD {
     if (hasStarted) { this.start.innerHTML = 'Back to school <span>↗</span>'; this.status.textContent = 'Paused · click to capture your mouse again'; }
   }
   playing() { this.welcome.hidden = true; document.body.classList.add('playing'); }
-  setPrompt(message, key = 'E') {
-    const id = `${key}:${message}`;
+  setPrompt(message, key = 'E', { title = '', detail = '', available = true } = {}) {
+    const id = `${key}:${message}:${title}:${detail}:${available}`;
     if (id === this.lastPrompt) return;
     this.lastPrompt = id; this.prompt.replaceChildren();
-    this.prompt.style.display = message ? 'block' : 'none';
+    this.prompt.style.display = message ? 'flex' : 'none';
     this.crosshair.classList.toggle('active', Boolean(message));
+    this.prompt.classList.toggle('waiting', !available);
+    this.prompt.setAttribute('aria-disabled', String(!available));
     if (message) {
       const kbd = document.createElement('kbd'); kbd.textContent = key;
-      this.prompt.append(kbd, document.createTextNode(message));
+      const copy = document.createElement('span'); copy.className = 'prompt-copy';
+      if (title) { const heading = document.createElement('strong'); heading.textContent = title; copy.append(heading); }
+      const action = document.createElement('span'); action.textContent = message; copy.append(action);
+      if (detail) { const hint = document.createElement('small'); hint.textContent = detail; copy.append(hint); }
+      this.prompt.append(kbd, copy);
     }
   }
   mode(text) { document.querySelector('#mode-label').textContent = text; }
