@@ -10,7 +10,7 @@ export class BlackboardEditor {
     document.querySelector('#finish-edit').addEventListener('click', () => this.close());
     this.dialog.addEventListener('close', () => {
       this.game.interactions.editing = null; this.board = null; this.game.input.enabled = true;
-      this.game.hud.toast('Board updated. Click Enter classroom to continue.');
+      this.game.hud.toast('Board updated. Click Enter school to continue.');
     });
   }
   open(board) {

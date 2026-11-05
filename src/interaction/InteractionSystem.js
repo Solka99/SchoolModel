@@ -33,11 +33,11 @@ export class InteractionSystem {
     const chair = this.seated;
     const fallback = chair.seat.clone().addScaledVector(new Vector3(Math.cos(chair.facing), 0, Math.sin(chair.facing)), 0.7);
     fallback.y = chair.seat.y - 0.46;
-    const position = [this.previous.feet, fallback, new Vector3(...g.world.hall.metrics.spawn)]
+    const position = [this.previous.feet, fallback, new Vector3(...g.world.school.spawn)]
       .find(p => !g.player.blocked(p, g.world.colliders));
-    g.player.reset(position || new Vector3(...g.world.hall.metrics.spawn));
+    g.player.reset(position || new Vector3(...g.world.school.spawn));
     g.view.yaw = this.previous.yaw; g.view.pitch = this.previous.pitch;
-    this.seated = null; this.previous = null; g.hud.mode('CLASSROOM EXPLORER');
+    this.seated = null; this.previous = null; g.hud.mode('SCHOOL EXPLORER');
   }
   edit(board) { this.editing = board; this.game.editor.open(board); }
 }

@@ -1,4 +1,4 @@
-import { Group } from 'three';
+import { Group, Vector3 } from 'three';
 import { DEFAULTS, normalizeParams, computeMetrics } from '../config/classroom.js';
 import { HStack, VStack } from './Layout.js';
 import { roomBox, PALETTE as C } from './prefabs.js';
@@ -33,13 +33,23 @@ export function tierSlots(p, m) {
   return steps.build([0, 0, p.seatStartZ]);
 }
 export class Classroom {
-  constructor(models, values = DEFAULTS) {
+  constructor(models, values = DEFAULTS, { outsideLanding = true } = {}) {
     this.params = normalizeParams(values); this.metrics = computeMetrics(this.params);
+    this.outsideLanding = outsideLanding;
     this.root = new Group(); this.root.name = 'lecture-hall'; this.objects = [];
     try { this.build(models); } catch (error) { for (const o of this.objects) o.dispose(); throw error; }
   }
   add(object) { this.objects.push(object); this.root.add(object.root); return object; }
   box(name, center, size, color, options) { return this.add(roomBox(name, center, size, color, options)); }
+  place(position) {
+    const next = new Vector3(...position), delta = next.clone().sub(this.root.position);
+    this.root.position.copy(next); this.root.updateMatrixWorld(true);
+    for (const object of this.objects) {
+      for (const collider of object.colliders) collider.box.translate(delta);
+      if (object.seat) object.seat.add(delta);
+    }
+    return this;
+  }
   build(models) {
     const p = this.params, m = this.metrics;
     this.box('floor', [0, -0.1, m.centerZ], [m.roomWidth, 0.2, m.roomDepth], C.floor);
@@ -55,7 +65,7 @@ export class Classroom {
         this.box('door-wall-back', [x, p.roomHeight / 2, (m.zBack + end) / 2], [0.2, p.roomHeight, m.zBack - end], C.wall);
         this.box('door-lintel', [x, (p.roomHeight + 2) / 2, m.doorCenterZ], [0.2, p.roomHeight - 2, 1], C.wall);
         this.door = this.add(new Door(models, [x, 1, m.doorCenterZ], { sign: -side }));
-        this.box('outside-landing', [x + side * 3, -0.1, m.doorCenterZ], [6.45, 0.2, 6], C.floor);
+        if (this.outsideLanding) this.box('outside-landing', [x + side * 3, -0.1, m.doorCenterZ], [6.45, 0.2, 6], C.floor);
         // Thin reveal trim frames the existing opening without narrowing it.
         for (const dz of [-0.57, 0.57]) this.box('door-trim', [x - side * 0.115, 1.05, m.doorCenterZ + dz], [0.035, 2.1, 0.07], C.wood, { solid: false });
         this.box('door-trim-top', [x - side * 0.115, 2.09, m.doorCenterZ], [0.035, 0.08, 1.2], C.wood, { solid: false });

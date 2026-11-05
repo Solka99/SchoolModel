@@ -1,6 +1,6 @@
 import { WebGLRenderer, SRGBColorSpace, ACESFilmicToneMapping, Vector3 } from 'three';
 import { World } from '../world/World.js';
-import { Classroom } from '../world/Classroom.js';
+import { School } from '../world/School.js';
 import { addLighting } from '../world/prefabs.js';
 import { ModelLibrary } from '../assets/ModelLibrary.js';
 import { FirstPersonCamera } from '../camera/FirstPersonCamera.js';
@@ -20,7 +20,7 @@ export class Game {
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = SRGBColorSpace; this.renderer.toneMapping = ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15; this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
-    this.renderer.domElement.setAttribute('aria-label', '3D lecture hall. Use Enter classroom to activate mouse and keyboard controls.');
+    this.renderer.domElement.setAttribute('aria-label', '3D school. Use Enter school to activate mouse and keyboard controls.');
     document.querySelector('#app').append(this.renderer.domElement);
     this.world = new World(); addLighting(this.world.scene);
     this.models = new ModelLibrary(); this.player = new CharacterController(); this.view = new FirstPersonCamera();
@@ -37,32 +37,31 @@ export class Game {
     window.addEventListener('resize', this.resize); this.resize();
     this.frame = this.frame.bind(this);
     this.renderer.domElement.addEventListener('webglcontextlost', e => {
-      e.preventDefault(); this.pause(); this.hud.error(new Error('The graphics context was lost. Reload to restore the classroom.'));
+      e.preventDefault(); this.pause(); this.hud.error(new Error('The graphics context was lost. Reload to restore the school.'));
     });
   }
   async start() {
     await this.models.load((loaded, total) => { this.hud.status.textContent = `Preparing models · ${loaded} / ${total}`; });
-    this.rebuild(); this.ready = true; this.previewCamera(); this.hud.ready();
+    this.rebuild(); this.ready = true; this.previewCamera(); this.hud.ready(this.world.school);
     this.animation = requestAnimationFrame(this.frame);
   }
   previewCamera() {
-    const m = this.world.hall.metrics;
-    this.view.camera.position.set(m.xRight - 0.9, 3.7, m.zBack - 0.7);
-    this.view.camera.lookAt(-1.2, 0.8, m.zFront + 1.5); this.view.camera.updateMatrixWorld(true);
+    this.view.camera.position.set(-0.75, 1.9, 2.2);
+    this.view.camera.lookAt(0.5, 1.5, 13); this.view.camera.updateMatrixWorld(true);
   }
   rebuild(params) {
-    // Construct before removing the old hall, so failed construction is recoverable.
-    const nextHall = new Classroom(this.models, params);
+    // Construct before removing the old school, so failed construction is recoverable.
+    const nextSchool = new School(this.models, params);
     this.pause(); this.editor.reset(); this.interactions.clear(); this.debug.clear();
-    this.world.setClassroom(nextHall); this.respawn(); this.debug.rebuild(this.world.colliders);
+    this.world.setSchool(nextSchool); this.respawn(); this.debug.rebuild(this.world.colliders);
     if (!this.started) this.previewCamera();
-    this.parameters?.sync(); this.hud.mode('CLASSROOM EXPLORER');
+    this.parameters?.sync(); this.hud.describeSchool(nextSchool); this.hud.mode('SCHOOL EXPLORER');
   }
   respawn() {
     this.interactions.clear(); this.input.clear();
-    this.player.reset(new Vector3(...this.world.hall.metrics.spawn));
+    this.player.reset(new Vector3(...this.world.school.spawn));
     this.view.yaw = Math.PI / 2; this.view.pitch = 0; this.view.sync(this.player.feet);
-    this.hud.mode('CLASSROOM EXPLORER');
+    this.hud.mode('SCHOOL EXPLORER'); this.hud.location(this.world.school.locationAt(this.player.feet));
   }
   onLock(locked) {
     this.accumulator = 0; this.lastTime = null;
@@ -74,8 +73,8 @@ export class Game {
   command(command) {
     if (command === 'settings') this.parameters.open();
     if (command === 'debug') this.setDebug(!this.debug.enabled);
-    if (command === 'respawn') { this.respawn(); this.hud.toast('Back at the front of the room.'); }
-    if (command === 'lock-error') this.hud.toast('Mouse capture was blocked. Click Enter classroom to try again.');
+    if (command === 'respawn') { this.respawn(); this.hud.toast('Back at the school entrance.'); }
+    if (command === 'lock-error') this.hud.toast('Mouse capture was blocked. Click Enter school to try again.');
   }
   setDebug(value) {
     this.debug.enabled = value; this.debug.rebuild(this.world.colliders);
@@ -87,7 +86,7 @@ export class Game {
     this.world.update(dt, this.interactions.seated ? null : this.player.box);
     if (this.interactions.seated) { if (jump) this.interactions.stand(); }
     else this.player.update(dt, this.input.intent, this.view.forward, this.view.right, jump, this.world.colliders);
-    if (this.player.feet.y < -8) { this.respawn(); this.hud.toast('You stepped off the landing. Back to class.'); }
+    if (this.player.feet.y < -8) { this.respawn(); this.hud.toast('Back at the school entrance.'); }
   }
   frame(time) {
     if (this.disposed) return;
@@ -97,6 +96,7 @@ export class Game {
       this.view.look(...this.input.mouse()); this.accumulator += elapsed;
       while (this.accumulator >= FIXED_STEP && this.running) { this.step(FIXED_STEP); this.accumulator -= FIXED_STEP; }
       this.view.sync(this.player.feet, this.player.eyeStepOffset);
+      this.hud.location(this.world.school.locationAt(this.player.feet));
       this.interactions.update();
       if (this.input.consume('KeyE')) this.interactions.activate();
       if (this.running) this.view.sync(this.player.feet, this.player.eyeStepOffset);

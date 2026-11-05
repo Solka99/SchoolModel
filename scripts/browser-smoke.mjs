@@ -50,13 +50,13 @@ try {
     ready = await evaluate(`!document.querySelector('#start-button')?.disabled && !!document.querySelector('canvas')`);
     if (ready) break; await delay(100);
   }
-  assert.ok(ready, 'Classroom loads');
+  assert.ok(ready, 'School loads');
   assert.equal(await evaluate(`document.body.classList.contains('fatal')`), false);
   await delay(600); await screenshot('welcome');
   const dev = await evaluate('!!window.schoolRush');
   if (dev) {
     const counts = await evaluate(`({chairs:schoolRush.world.objects.filter(o=>o.kind==='chair').length,desks:schoolRush.world.objects.filter(o=>o.kind==='desk').length,assets:schoolRush.models.templates.size})`);
-    assert.deepEqual(counts, { chairs: 106, desks: 105, assets: 5 });
+    assert.deepEqual(counts, { chairs: 318, desks: 315, assets: 5 });
     // A real mouse click tests the user-gesture boundary for Pointer Lock.
     const button = await evaluate(`(()=>{const r=document.querySelector('#start-button').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
     await call('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...button });
@@ -76,39 +76,68 @@ try {
     const checks = await evaluate(`(async()=>{
       const g=schoolRush; const {Vector3}=await import('/node_modules/.vite/deps/three.js');
       const assert=(condition,message)=>{if(!condition)throw new Error(message)};
-      // Climb both central aisles with the real hall's furniture colliders.
-      for(const x of [-1.95,1.95]){
-        g.player.reset(new Vector3(x,0,0.2));
-        for(let i=0;i<230;i++)g.player.update(1/120,{x:0,z:1},new Vector3(0,0,1),new Vector3(1,0,0),false,g.world.colliders);
-        assert(g.player.feet.z>8.5,'Aisle traversal blocked at '+JSON.stringify(g.player.feet));
-        assert(Math.abs(g.player.feet.y-1.4)<0.01,'All seven steps climbed');
+      const F=new Vector3(0,0,1),R=new Vector3(1,0,0);
+      function move(x,z){
+        for(let i=0;i<3000;i++){
+          const dx=x-g.player.feet.x,dz=z-g.player.feet.z,d=Math.hypot(dx,dz);
+          if(d<0.045){for(let j=0;j<30;j++)g.player.update(1/120,{x:0,z:0},F,R,false,g.world.colliders);return;}
+          g.player.update(1/120,{x:dx/d,z:dz/d},F,R,false,g.world.colliders);
+        }
+        throw new Error('Walk blocked: '+JSON.stringify({target:[x,z],feet:g.player.feet.toArray()}));
       }
-      const door=g.world.hall.door; const center=door.panelCollider.box.getCenter(new Vector3());
-      g.player.reset(new Vector3(center.x+1,0,center.z));g.view.camera.position.copy(g.player.feet).y+=1.62;g.view.camera.lookAt(center);g.view.camera.updateMatrixWorld();
-      assert(g.interactions.findTarget(g.view.camera,g.world.pickables)===door,'Door ray target');
-      door.interact();door.interact();
-      for(let i=0;i<120;i++)door.update(1/120);
-      assert(door.angle===95,'Door opens after handle sequence');
-      for(let i=0;i<60;i++)g.player.update(1/120,{x:-1,z:0},new Vector3(0,0,1),new Vector3(1,0,0),false,g.world.colliders);
-      assert(g.player.feet.x<center.x-0.5,'Open doorway leads outside');
-      door.interact();for(let i=0;i<120;i++)door.update(1/120);assert(door.angle===0,'Door closes');
-      const chair=g.world.objects.find(o=>o.kind==='chair');g.interactions.sit(chair);assert(g.interactions.seated===chair,'Sitting');g.interactions.stand();assert(!g.interactions.seated,'Standing');
-      const desk=g.world.objects.find(o=>o.kind==='desk');desk.interact();for(let i=0;i<120;i++)desk.update(1/120);assert(desk.angle===90,'Folding desk opens');desk.interact();for(let i=0;i<120;i++)desk.update(1/120);assert(desk.angle===0,'Folding desk closes');
-      g.interactions.edit(g.world.hall.blackboard);document.querySelector('#board-text').value='School Rush browser test';document.querySelector('#board-text').dispatchEvent(new Event('input'));assert(g.world.hall.blackboard.text==='School Rush browser test','Board text');g.editor.close();
-      g.rebuild({seatRows:4,seatCols:3,doorOnLeft:false});assert(g.world.objects.filter(o=>o.kind==='desk').length===36,'Rebuild counts');
+      function open(door){
+        g.view.camera.position.copy(g.player.feet).y+=1.62;g.view.camera.lookAt(door.panelCollider.box.getCenter(new Vector3()));g.view.camera.updateMatrixWorld();
+        assert(g.interactions.findTarget(g.view.camera,g.world.pickables)===door,'Reachable door ray target');
+        g.interactions.target=door;g.interactions.activate();
+        for(let i=0;i<120;i++)g.world.update(1/120,g.player.box);
+        assert(door.angle===95,'Door opens without hitting player');
+      }
+      // Continuous route: no teleports between entrance, corridor, or classrooms.
+      g.respawn();
+      const entrance=g.world.school.corridor.entranceDoor;open(entrance);move(0,-1.4);
+      assert(g.world.school.locationAt(g.player.feet).includes('ENTRANCE'),'Exit onto entrance landing');move(0,1.5);
+      const visited=[];
+      for(const room of g.world.school.rooms){
+        const c=room.classroom,m=c.metrics,p=c.params,dx=room.door[0],dz=room.door[2],side=room.side;
+        move(0,dz);move(dx-side*1.6,dz);
+        // Verify the closed panel blocks the physical route, then step back to open it.
+        for(let i=0;i<70;i++)g.player.update(1/120,{x:side,z:0},F,R,false,g.world.colliders);
+        assert(side*(g.player.feet.x-dx)<0,'Closed door blocks passage');move(dx-side*1.6,dz);
+        open(c.door);move(dx+side,dz);
+        assert(g.world.school.locationAt(g.player.feet).includes(room.number),'Enter room '+room.number);
+        move(dx+side,room.origin[2]+0.9);
+        const aisle=room.origin[0]-m.seatingWidth/2+m.sectionWidth+p.aisleWidth/2;
+        move(aisle,room.origin[2]+0.9);move(aisle,room.bounds.maxZ-0.6);
+        assert(Math.abs(g.player.feet.y-p.seatRows*p.rowHeight)<0.01,'Climb translated tiers '+room.number);
+        move(aisle,room.origin[2]+0.9);move(dx+side,room.origin[2]+0.9);move(dx+side,dz);
+        const chair=c.objects.find(o=>o.kind==='chair');g.interactions.sit(chair);assert(g.interactions.seated===chair,'Sitting '+room.number);g.interactions.stand();
+        const desk=c.objects.find(o=>o.kind==='desk');desk.interact();for(let i=0;i<120;i++)desk.update(1/120);assert(desk.angle===90,'Desk opens '+room.number);desk.interact();for(let i=0;i<120;i++)desk.update(1/120);
+        g.interactions.edit(c.blackboard);document.querySelector('#board-text').value='Room '+room.number;document.querySelector('#board-text').dispatchEvent(new Event('input'));assert(c.blackboard.text==='Room '+room.number,'Independent board '+room.number);g.editor.close();
+        move(dx-side*1.6,dz);move(0,dz);visited.push(room.number);
+      }
+      assert(new Set(g.world.school.rooms.map(r=>r.classroom.blackboard.text)).size===3,'Boards have independent state');
+      move(0,1.5);
+      g.rebuild({seatRows:4,seatCols:3,corridorWidth:3,frontMargin:1.5,roomHeight:3.2});assert(g.world.objects.filter(o=>o.kind==='desk').length===108,'Rebuild counts');
       assert(!g.interactions.editing&&!g.interactions.seated,'Rebuild state cleared');
+      for(const room of g.world.school.rooms){
+        const [x,,z]=room.door;move(0,z);move(x-room.side*1.6,z);open(room.classroom.door);move(x+room.side,z);
+        assert(g.world.school.locationAt(g.player.feet).includes(room.number),'Enter rebuilt room '+room.number);
+        move(0,z);
+      }
       g.rebuild();g.respawn();
       g.previewCamera();g.renderer.render(g.world.scene,g.view.camera);
       const before={...g.renderer.info.memory};
       for(let i=0;i<5;i++){g.setDebug(i%2===0);g.rebuild();g.setDebug(false);g.previewCamera();g.renderer.render(g.world.scene,g.view.camera);}
       const after={...g.renderer.info.memory};
       assert(after.geometries===before.geometries&&after.textures===before.textures,'Rebuild resources grow: '+JSON.stringify({before,after}));
-      return {objects:g.world.objects.length,colliders:g.world.colliders.length,memory:after,checks:'passed'};
+      return {visited,rebuiltRoutes:'passed',objects:g.world.objects.length,colliders:g.world.colliders.length,memory:after,checks:'passed'};
     })()`);
-    console.log('Real hall checks:', JSON.stringify(checks));
+    console.log('School traversal checks:', JSON.stringify(checks));
     // Paused views allow visual inspection without pointer lock.
-    await evaluate(`document.querySelector('#welcome').hidden=true; schoolRush.view.camera.position.set(0,2.7,9.5); schoolRush.view.camera.lookAt(0,1,-2.8);`);
-    await delay(150); await screenshot('rear-view');
+    await evaluate(`document.querySelector('#welcome').hidden=true; schoolRush.view.camera.position.set(0,1.62,12); schoolRush.view.camera.lookAt(0,1.62,0);`);
+    await delay(150); await screenshot('corridor');
+    await evaluate(`const r=schoolRush.world.school.rooms[0];schoolRush.view.camera.position.set(r.origin[0],2.7,r.bounds.maxZ-0.7);schoolRush.view.camera.lookAt(r.origin[0],1,r.bounds.minZ);`);
+    await delay(150); await screenshot('classroom-interior');
     await evaluate(`document.querySelector('#welcome').hidden=false; schoolRush.parameters.open();`);
     await screenshot('settings');
     await evaluate(`schoolRush.parameters.dialog.close();`);

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { Vector3 } from 'three';
+import { Group, Vector3 } from 'three';
+import { Classroom } from '../src/world/Classroom.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Door } from '../src/objects/Door.js';
 import { StudentDesk } from '../src/objects/StudentDesk.js';
@@ -52,4 +53,24 @@ test('actual desk mesh keeps its support fixed while the writing surface folds',
   assert.equal(desk.topCollider.box.equals(closed), false);
   desk.interact(); for (let i = 0; i < 60; i++) desk.update(1 / 120);
   assert.equal(desk.angle, 0); assert.equal(desk.topCollider.box.equals(closed), true);
+});
+
+test('placing a room moves colliders and seats; animated bounds remain in world space', () => {
+  const door = new Door(models, [0, 1, 0]);
+  const desk = new StudentDesk(models, [0, 0.2, 2]);
+  const chair = { root: new Group(), seat: new Vector3(1, 0.66, 3), colliders: [] };
+  const room = Object.assign(Object.create(Classroom.prototype), { root: new Group(), objects: [door, desk, chair] });
+  room.root.add(door.root, desk.root, chair.root);
+  const before = door.panelCollider.box.clone();
+  room.place([10, 0, 20]);
+  assert.ok(door.panelCollider.box.getCenter(new Vector3()).distanceTo(before.getCenter(new Vector3()).add(new Vector3(10, 0, 20))) < 1e-6);
+  assert.deepEqual(chair.seat.toArray(), [11, 0.66, 23]);
+  door.interact(); for (let i = 0; i < 120; i++) door.update(1 / 120);
+  assert.ok(door.panelCollider.box.min.x > 8 && door.panelCollider.box.min.z > 18);
+  desk.interact(); for (let i = 0; i < 120; i++) desk.update(1 / 120);
+  assert.ok(desk.topCollider.box.min.x > 9 && desk.topCollider.box.min.z > 21);
+  room.place([-10, 0, 40]);
+  const oldBounds = door.panelCollider.box.clone(); door.refresh();
+  assert.ok(door.panelCollider.box.getCenter(new Vector3()).distanceTo(oldBounds.getCenter(new Vector3())) < 1e-6);
+  assert.deepEqual(chair.seat.toArray(), [-9, 0.66, 43]);
 });
