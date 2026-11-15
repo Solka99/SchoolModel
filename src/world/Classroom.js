@@ -1,4 +1,4 @@
-import { Group, Vector3 } from 'three';
+import { Group, Matrix4, Vector3 } from 'three';
 import { DEFAULTS, normalizeParams, computeMetrics } from '../config/classroom.js';
 import { HStack, VStack } from './Layout.js';
 import { roomBox, PALETTE as C } from './prefabs.js';
@@ -43,14 +43,18 @@ export class Classroom {
   }
   add(object) { this.objects.push(object); this.root.add(object.root); return object; }
   box(name, center, size, color, options) { return this.add(roomBox(name, center, size, color, options)); }
-  place(position) {
-    const next = new Vector3(...position), delta = next.clone().sub(this.root.position);
-    this.root.position.copy(next); this.root.updateMatrixWorld(true);
+  place(position, yaw = 0) {
+    const next = new Vector3(...position);
+    this.root.updateMatrix();
+    const previousMatrix = this.root.matrix.clone();
+    this.root.position.copy(next); this.root.rotation.y = yaw; this.root.updateMatrix();
+    const transform = this.root.matrix.clone().multiply(previousMatrix.invert());
     for (const object of this.objects) {
-      for (const collider of object.colliders) collider.box.translate(delta);
-      if (object.seat) object.seat.add(delta);
-      if (object.pickBox) object.pickBox.translate(delta);
+      for (const collider of object.colliders) collider.box.applyMatrix4(transform);
+      if (object.seat) object.seat.applyMatrix4(transform);
+      if (object.pickBox) object.pickBox.applyMatrix4(transform);
     }
+    this.root.updateMatrixWorld(true);
     return this;
   }
   build(models) {

@@ -25,7 +25,7 @@ export class BlackboardEditor {
     if (!this.board) return;
     if (this.game.interactions.editing === this.board) this.game.interactions.editing = null;
     this.board = null; this.game.input.enabled = true;
-    if (notify) this.game.hud.toast('Board updated. Use Back to school to resume.');
+    if (notify) this.game.hud.toast('Board updated. Click the start or resume button to continue.');
   }
   close() { this.sync(); this.dialog.close(); this.finish(); }
   reset() {

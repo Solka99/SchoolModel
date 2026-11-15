@@ -18,6 +18,7 @@ export class ParametersPanel {
   }
   sync() { for (const [key, input] of this.inputs) input.value = this.game.world.school.params[key]; }
   open() {
+    if (this.game.rush?.active) { this.game.hud.toast('Leave the timed run to change school settings.'); return; }
     if (!this.game.ready || document.querySelector('dialog[open]')) return;
     this.game.pause(); this.sync(); this.dialog.showModal();
   }

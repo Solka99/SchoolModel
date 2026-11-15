@@ -69,7 +69,7 @@ export class InteractionSystem {
       .find(p => !g.player.blocked(p, g.world.colliders));
     g.player.reset(position || new Vector3(...g.world.school.spawn));
     g.view.yaw = this.previous.yaw; g.view.pitch = this.previous.pitch;
-    this.seated = null; this.previous = null; g.hud.mode('SCHOOL EXPLORER');
+    this.seated = null; this.previous = null; g.hud.mode(g.rush?.active ? 'SCHOOL RUSH · GET TO CLASS' : 'SCHOOL EXPLORER');
   }
   edit(board) {
     if (this.seated || this.editing) return false;
