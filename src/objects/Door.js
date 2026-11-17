@@ -48,11 +48,13 @@ export class Door extends SceneObject {
     this.handles.forEach((h, i) => { h.rotation.y = MathUtils.degToRad(this.handleAngle) * (i === 0 ? 1 : -1); });
     const previous = this.angle;
     this.angle = approach(this.angle, this.open ? 95 : 0, 220 * dt);
-    if (previous === this.angle) return;
-    this.swing.rotation.y = MathUtils.degToRad(this.angle) * this.sign; this.refresh();
-    if (playerBox && penetrates(playerBox, this.panelCollider.box)) {
-      this.blocked = true;
-      this.angle = previous; this.swing.rotation.y = MathUtils.degToRad(previous) * this.sign; this.refresh();
+    if (previous !== this.angle) {
+      this.swing.rotation.y = MathUtils.degToRad(this.angle) * this.sign; this.refresh();
+      if (playerBox && penetrates(playerBox, this.panelCollider.box)) {
+        this.blocked = true;
+        this.angle = previous; this.swing.rotation.y = MathUtils.degToRad(previous) * this.sign; this.refresh();
+      }
     }
+    return this.pending || this.hold > 0 || this.angle !== (this.open ? 95 : 0) || this.handleAngle !== 0;
   }
 }

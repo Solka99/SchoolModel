@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { Box3, Vector3 } from 'three';
 import { playerBox, penetrates, overlapsXZ } from './Aabb.js';
 
 // Feet remain authoritative. A camera offset eases automatic steps without
@@ -8,13 +8,18 @@ export class CharacterController {
     this.feet = new Vector3();
     this.halfWidth = 0.2; this.height = 1.8;
     this.speed = 4.5; this.gravity = -20; this.jumpSpeed = 7.5; this.maxStep = 0.8;
+    this.collisionBox = new Box3();
     this.reset(new Vector3());
   }
   reset(position) {
     this.feet.copy(position); this.verticalSpeed = 0; this.grounded = false;
     this.eyeStepOffset = 0;
   }
-  get box() { return playerBox(this.feet, this.halfWidth, this.height); }
+  get box() {
+    this.collisionBox.min.set(this.feet.x - this.halfWidth, this.feet.y, this.feet.z - this.halfWidth);
+    this.collisionBox.max.set(this.feet.x + this.halfWidth, this.feet.y + this.height, this.feet.z + this.halfWidth);
+    return this.collisionBox;
+  }
   blocked(position, colliders) {
     const box = playerBox(position, this.halfWidth, this.height);
     return colliders.some(c => penetrates(box, c.box));

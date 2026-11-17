@@ -17,12 +17,13 @@ export const FIXED_STEP = 1 / 120;
 export class Game {
   constructor() {
     this.hud = new HUD(); this.ready = false; this.started = false; this.running = false;
-    this.accumulator = 0; this.lastTime = null; this.disposed = false;
+    this.accumulator = 0; this.lastTime = null; this.lastTargetUpdate = -Infinity;
+    this.renderPending = true; this.disposed = false;
     this.rush = new GameManager();
-    this.renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer = new WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = SRGBColorSpace; this.renderer.toneMapping = ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15; this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
-    this.renderer.domElement.setAttribute('aria-label', '3D school. Use Enter school to activate mouse and keyboard controls.');
+    this.renderer.toneMappingExposure = 1.15; this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1));
+    this.renderer.domElement.setAttribute('aria-label', '3D school. Choose Explore to activate mouse and keyboard controls.');
     document.querySelector('#app').append(this.renderer.domElement);
     this.world = new World(); addLighting(this.world.scene);
     this.models = new ModelLibrary(); this.player = new CharacterController(); this.view = new FirstPersonCamera();
@@ -44,7 +45,10 @@ export class Game {
       this.pause(); document.querySelector('#help-dialog').showModal();
     });
     document.querySelector('#close-help').addEventListener('click', () => document.querySelector('#help-dialog').close());
-    this.resize = () => { this.renderer.setSize(innerWidth, innerHeight); this.view.resize(innerWidth, innerHeight); };
+    this.resize = () => {
+      this.renderer.setSize(innerWidth, innerHeight); this.view.resize(innerWidth, innerHeight);
+      this.renderPending = true;
+    };
     window.addEventListener('resize', this.resize); this.resize();
     this.frame = this.frame.bind(this);
     this.renderer.domElement.addEventListener('webglcontextlost', e => {
@@ -60,6 +64,7 @@ export class Game {
     const [x, , z] = this.world.school.spawn;
     this.view.camera.position.set(x, 1.9, z);
     this.view.camera.lookAt(x + 8, 1.5, z); this.view.camera.updateMatrixWorld(true);
+    this.renderPending = true;
   }
   rebuild(params, { targetRoom = null } = {}) {
     // Construct before removing the old school, so failed construction is recoverable.
@@ -67,6 +72,7 @@ export class Game {
     this.pause(); this.editor.reset(); this.interactions.clear(); this.debug.clear();
     this.rush.reset();
     this.world.setSchool(nextSchool); this.respawn(); this.debug.rebuild(this.world.colliders);
+    this.renderPending = true;
     if (targetRoom) {
       this.rush.prepare(nextSchool.rooms.find(r => r.number === targetRoom) || nextSchool.rooms.at(-1));
       if (this.rush.nextGateIndex !== null) this.placeNextKey();
@@ -88,7 +94,7 @@ export class Game {
     if (!classrooms.length) throw new Error(`No reachable classroom in corridor ${corridorIndex + 1} for the next key.`);
     const room = classrooms[Math.floor(Math.random() * classrooms.length)];
     const key = school.spawnKey(room, this);
-    this.world.pickables.push(key.root); this.world.dynamic.push(key);
+    this.world.pickables.push(key.root); this.world.activate(key);
     this.rush.setKeyRoom(room.number);
   }
   collectKey(key) {
@@ -96,8 +102,7 @@ export class Game {
     if (school.activeKey !== key || !this.rush.collectKey(key.room.number)) return false;
     const pickableIndex = this.world.pickables.indexOf(key.root);
     if (pickableIndex >= 0) this.world.pickables.splice(pickableIndex, 1);
-    const dynamicIndex = this.world.dynamic.indexOf(key);
-    if (dynamicIndex >= 0) this.world.dynamic.splice(dynamicIndex, 1);
+    this.world.dynamic.delete(key);
     key.collected = true; key.root.visible = false; school.activeKey = null;
     this.hud.toast(`Key collected from Room ${key.room.number}`);
     this.hud.setRun(this.rush, school);
@@ -139,9 +144,12 @@ export class Game {
     this.hud.mode(this.rush.state === 'won' ? 'ON TIME · CLASS REACHED' : 'THE BELL HAS RUNG');
   }
   advanceRace(seconds) {
+    const previousState = this.rush.state, previousDisplay = this.rush.timer.display;
     this.rush.update(seconds, this.player.feet);
     if (this.rush.finished) this.finishRun();
-    this.hud.setRun(this.rush, this.world.school);
+    if (this.rush.state !== previousState || this.rush.timer.display !== previousDisplay) {
+      this.hud.setRun(this.rush, this.world.school);
+    }
   }
   command(command) {
     if (command === 'settings') this.parameters.open();
@@ -155,6 +163,7 @@ export class Game {
   setDebug(value) {
     this.debug.enabled = value; this.debug.rebuild(this.world.colliders);
     document.querySelector('#debug-checkbox').checked = value;
+    this.renderPending = true;
   }
   step(dt) {
     const jump = this.input.consume('Space');
@@ -165,7 +174,8 @@ export class Game {
       if (this.rush.finished) { this.finishRun(); return; }
     }
     if (this.interactions.seated) { if (jump) this.interactions.stand(); }
-    else this.player.update(dt, this.input.intent, this.view.forward, this.view.right, jump, this.world.colliders);
+    else this.player.update(dt, this.input.intent, this.view.forward, this.view.right, jump,
+      this.world.collidersNear(this.player.box));
     if (this.player.feet.y < -8) {
       this.rush.penalize(3); this.respawn(); this.hud.toast(this.rush.active ? 'Returned to entrance · −3 seconds' : 'Back at the school entrance.');
       if (this.rush.finished) this.finishRun();
@@ -183,11 +193,15 @@ export class Game {
       this.advanceRace(rawElapsed);
       this.view.sync(this.player.feet, this.player.eyeStepOffset);
       this.hud.location(this.world.school.locationAt(this.player.feet));
-      if (this.running) this.interactions.update();
+      if (this.running && time - this.lastTargetUpdate >= 50) {
+        this.interactions.update(); this.lastTargetUpdate = time;
+      }
       if (this.running && this.input.consume('KeyE')) this.interactions.activate();
-      if (this.running) this.view.sync(this.player.feet, this.player.eyeStepOffset);
     } else this.accumulator = 0;
-    this.renderer.render(this.world.scene, this.view.camera);
+    if ((this.running && !document.hidden) || this.renderPending) {
+      this.renderer.render(this.world.scene, this.view.camera);
+      this.renderPending = false;
+    }
     this.animation = requestAnimationFrame(this.frame);
   }
   dispose() {

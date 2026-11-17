@@ -3,28 +3,105 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#163c38" />
+    <meta name="theme-color" content="#f1f2ed" />
+    <link rel="stylesheet" href="/src/styles.css" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>School Rush · Ground Floor</title>
+    <title>School Explorer · 3D school model</title>
   </head>
   <body>
     <main id="app" aria-label="Interactive 3D school"></main>
-    <header class="masthead"><a class="wordmark" href="./">school<span>rush</span><i></i></a><span class="chapter" id="location-label">GROUND FLOOR / MAIN ENTRANCE</span><button id="settings-button" class="quiet-button">School settings <kbd>Tab</kbd></button></header>
+    <header class="masthead">
+      <a class="wordmark" href="./">school<span>3D</span></a>
+      <span class="chapter" id="location-label">NORTH CORRIDOR</span>
+      <button id="settings-button" class="quiet-button">School settings <kbd>Tab</kbd></button>
+    </header>
     <div id="crosshair" aria-hidden="true"></div>
     <div id="prompt" role="status" aria-live="polite"></div>
-    <aside id="race-hud" hidden aria-label="School Rush challenge">
-      <div class="race-heading"><span>BEFORE THE BELL</span><strong id="race-clock" role="timer" aria-live="off">00:45</strong></div>
-      <span class="race-label">YOUR CLASSROOM</span><strong id="race-destination"></strong>
-      <small id="race-route"></small><small>Escape pauses · R restarts</small>
+    <aside id="race-hud" hidden aria-label="Classroom challenge">
+      <div class="race-heading"><span>CLASSROOM CHALLENGE</span><strong id="race-clock" role="timer" aria-live="off">00:45</strong></div>
+      <span class="race-label">DESTINATION</span>
+      <strong id="race-destination"></strong>
+      <small id="race-route"></small>
+      <small>Escape pauses · R restarts</small>
     </aside>
-    <footer class="toolbar"><span><i class="status-dot"></i> <span id="mode-label">SCHOOL EXPLORER</span></span><span id="controls-hint"><kbd>W A S D</kbd> move <kbd>SPACE</kbd> jump <kbd>E</kbd> interact <kbd>ESC</kbd> pause</span><button id="help-button" class="quiet-button">Controls <span>?</span></button></footer>
+    <footer class="toolbar">
+      <span><i class="status-dot"></i><span id="mode-label">SCHOOL EXPLORER</span></span>
+      <span id="controls-hint"><kbd>W A S D</kbd> move <kbd>SPACE</kbd> jump <kbd>E</kbd> interact <kbd>ESC</kbd> pause</span>
+      <button id="help-button" class="quiet-button">Controls <span>?</span></button>
+    </footer>
     <section id="welcome" class="scrim" aria-labelledby="welcome-title">
-      <div class="welcome-card"><div class="eyebrow">SCHOOL RUSH / PHASE 04</div><div class="room-tag">THE SCHOOL <span>GROUND FLOOR</span></div><h1 id="welcome-title">Late for class?<br><em>Make a move.</em></h1><p id="welcome-intro" class="intro">Find keys in reachable classrooms, raise the corridor barriers, and dodge moving carts to reach class.</p><div id="run-result" hidden role="status"></div><div id="school-directory" class="school-directory" aria-label="Classroom directory"></div><label class="target-picker" for="target-room">Destination <select id="target-room" aria-label="Target classroom"></select></label><div class="start-actions"><button id="rush-button" class="primary-button" disabled>Start a 45-second rush <span>↗</span></button><button id="start-button" class="secondary-button" disabled>Explore the school <span>↗</span></button></div><p id="load-status" role="status">Preparing models and materials</p><div class="welcome-keys"><span><kbd>W A S D</kbd> Move</span><span><kbd>MOUSE</kbd> Look</span><span><kbd>E</kbd> Interact</span></div></div>
-      <div class="scene-caption"><span>ONE FLOOR / FOUR CONNECTED CORRIDORS</span><strong id="school-summary">Four classrooms around a square corridor loop.</strong><span>Three.js / WebGL</span></div>
+      <div class="welcome-card">
+        <div class="eyebrow">INTERACTIVE SCHOOL MODEL</div>
+        <div class="room-tag">GROUND FLOOR <span>16 CLASSROOMS</span></div>
+        <h1 id="welcome-title">Explore the school</h1>
+        <p id="welcome-intro" class="intro">Walk through the corridors, visit a classroom, or try to reach one before the 45-second timer runs out.</p>
+        <div id="run-result" hidden role="status"></div>
+        <div id="school-directory" class="school-directory" aria-label="Classroom directory"></div>
+        <label class="target-picker" for="target-room">Choose a classroom
+          <select id="target-room" aria-label="Target classroom"></select>
+        </label>
+        <div class="start-actions">
+          <button id="rush-button" class="primary-button" disabled>Start 45-second challenge <span>→</span></button>
+          <button id="start-button" class="secondary-button" disabled>Explore <span>→</span></button>
+        </div>
+        <p id="load-status" role="status">Loading the school model…</p>
+        <div class="welcome-keys">
+          <span><kbd>W A S D</kbd> Move</span>
+          <span><kbd>MOUSE</kbd> Look</span>
+          <span><kbd>E</kbd> Interact</span>
+        </div>
+      </div>
+      <div class="scene-caption">
+        <span>GROUND FLOOR</span>
+        <strong>16 classrooms · 4 connected corridors</strong>
+      </div>
     </section>
-    <dialog id="settings-dialog" aria-labelledby="settings-title"><form id="settings-form"><div class="eyebrow">MAKE ROOM</div><h2 id="settings-title">The school, your way.</h2><p>Configure all four classrooms and their square corridor loop.</p><div id="parameter-fields"></div><label class="check-label"><input type="checkbox" id="debug-checkbox" /> Show collision bounds <kbd>B</kbd></label><p class="small-note">Rebuilding clears board text and returns you to the school entrance.</p><div class="dialog-actions"><button type="button" id="reset-button" class="secondary-button">Reset defaults</button><button type="submit" class="primary-button">Rebuild school <span>↗</span></button></div><button type="button" id="close-settings" class="text-button">Back to school</button></form></dialog>
-    <dialog id="editor-dialog" aria-labelledby="editor-title"><div class="eyebrow">A NOTE TO THE CLASS</div><h2 id="editor-title">On the board.</h2><label for="board-text">Write up to 200 characters</label><textarea id="board-text" maxlength="200" rows="4" placeholder="Leave a thought…"></textarea><div class="editor-meta"><span><kbd>ENTER</kbd> finish · <kbd>SHIFT + ENTER</kbd> new line · <kbd>DELETE</kbd> clear</span><span id="character-count">0 / 200</span></div><div class="dialog-actions"><button id="clear-board" class="secondary-button">Clear board</button><button id="finish-edit" class="primary-button">Done <span>↗</span></button></div></dialog>
-    <dialog id="help-dialog" aria-labelledby="help-title"><div class="eyebrow">FIND YOUR WAY</div><h2 id="help-title">Before the bell.</h2><dl class="controls-list"><div><dt>Walk</dt><dd><kbd>W A S D</kbd></dd></div><div><dt>Look around</dt><dd>Mouse</dd></div><div><dt>Jump / stand up</dt><dd><kbd>SPACE</kbd></dd></div><div><dt>Open, collect, sit, write, or switch lights</dt><dd><kbd>E</kbd> or left click</dd></div><div><dt>Pause / release mouse</dt><dd><kbd>ESC</kbd></dd></div><div><dt>School settings in exploration</dt><dd><kbd>Tab</kbd></dd></div><div><dt>Collision bounds</dt><dd><kbd>B</kbd></dd></div><div><dt>Reset run / return to entrance</dt><dd><kbd>R</kbd></dd></div></dl><p>Start a timed rush and get fully inside your selected classroom in 45 seconds. Find the key shown in the HUD in a reachable classroom, then use E to raise the next corridor barrier. The next key appears in an accessible classroom after each barrier rises. Moving carts shuttle across the corridors; contact costs 2 seconds.</p><p>Escape, help, and board editing pause the clock. Resume continues the same run; R returns to a fresh ready screen. Explore the square school with no timer, keys, or obstacles. Classroom light switches, desks, chairs, and blackboards remain interactive; look for their outline and prompt within two units.</p><button id="close-help" class="primary-button">Got it <span>↗</span></button></dialog>
+    <dialog id="settings-dialog" aria-labelledby="settings-title">
+      <form id="settings-form">
+        <div class="eyebrow">SCHOOL SETTINGS</div>
+        <h2 id="settings-title">Change the layout</h2>
+        <p>Adjust the classrooms and corridor width.</p>
+        <div id="parameter-fields"></div>
+        <label class="check-label"><input type="checkbox" id="debug-checkbox" /> Show collision bounds <kbd>B</kbd></label>
+        <p class="small-note">Rebuilding clears board text and returns you to the entrance.</p>
+        <div class="dialog-actions">
+          <button type="button" id="reset-button" class="secondary-button">Reset defaults</button>
+          <button type="submit" class="primary-button">Rebuild school <span>→</span></button>
+        </div>
+        <button type="button" id="close-settings" class="text-button">Back to school</button>
+      </form>
+    </dialog>
+    <dialog id="editor-dialog" aria-labelledby="editor-title">
+      <div class="eyebrow">BLACKBOARD</div>
+      <h2 id="editor-title">Edit the blackboard</h2>
+      <label for="board-text">Write up to 200 characters</label>
+      <textarea id="board-text" maxlength="200" rows="4" placeholder="Write a note…"></textarea>
+      <div class="editor-meta">
+        <span><kbd>ENTER</kbd> finish · <kbd>SHIFT + ENTER</kbd> new line · <kbd>DELETE</kbd> clear</span>
+        <span id="character-count">0 / 200</span>
+      </div>
+      <div class="dialog-actions">
+        <button id="clear-board" class="secondary-button">Clear board</button>
+        <button id="finish-edit" class="primary-button">Done <span>→</span></button>
+      </div>
+    </dialog>
+    <dialog id="help-dialog" aria-labelledby="help-title">
+      <div class="eyebrow">CONTROLS</div>
+      <h2 id="help-title">How to play</h2>
+      <dl class="controls-list">
+        <div><dt>Move</dt><dd><kbd>W A S D</kbd></dd></div>
+        <div><dt>Look around</dt><dd>Mouse</dd></div>
+        <div><dt>Jump / stand up</dt><dd><kbd>SPACE</kbd></dd></div>
+        <div><dt>Interact</dt><dd><kbd>E</kbd> or left click</dd></div>
+        <div><dt>Pause / release mouse</dt><dd><kbd>ESC</kbd></dd></div>
+        <div><dt>School settings</dt><dd><kbd>Tab</kbd></dd></div>
+        <div><dt>Collision bounds</dt><dd><kbd>B</kbd></dd></div>
+        <div><dt>Reset run / return to entrance</dt><dd><kbd>R</kbd></dd></div>
+      </dl>
+      <p>Choose a classroom and get inside before time runs out. Find a key in an accessible room to raise the next corridor barrier. Moving carts cost 2 seconds if you hit them.</p>
+      <p>Escape, help, and board editing pause the clock. Explore the school without a timer or obstacles. Look for an outline to find desks, chairs, blackboards, and light switches.</p>
+      <button id="close-help" class="primary-button">Got it <span>→</span></button>
+    </dialog>
     <div id="toast" role="status"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

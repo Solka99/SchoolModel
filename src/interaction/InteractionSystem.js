@@ -46,7 +46,7 @@ export class InteractionSystem {
     if (this.seated || this.editing) return false;
     this.target = this.findTarget(this.game.view.camera, this.game.world.pickables);
     if (!this.target || this.target.canInteract === false) return false;
-    this.target.interact(this); return true;
+    this.game.world.activate(this.target); this.target.interact(this); return true;
   }
   notify(message) { this.game.hud.toast(message); }
   sit(chair) {

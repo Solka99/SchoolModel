@@ -61,11 +61,11 @@ export class Corridor {
       light.mesh.material.emissive.set('#fff0cf'); light.mesh.material.emissiveIntensity = 1;
       fixtures.push(light.mesh.material);
     }
-    const count = Math.ceil(length / 10), height = h - 0.25;
-    this.lighting = this.add(new LightCircuit(spec.name, Array.from({ length: count }, (_, i) => ({
-      position: [0, height, -length / 2 + (i + 0.5) * length / count], intensity: 32 * (height / 3.75) ** 2,
-      distance: Math.max(9, height + 4),
-    })), fixtures));
+    const height = h - 0.25;
+    this.lighting = this.add(new LightCircuit(spec.name, [{
+      position: [0, height, 0], intensity: 90 * (height / 3.75) ** 2,
+      distance: Math.hypot(length / 2, half, height) * 1.1,
+    }], fixtures));
     this.lightSwitch = this.add(new LightSwitch(this.lighting, [half - 0.035, 1.35, -length / 2 + 2.2], -Math.PI / 2));
     this.root.updateMatrixWorld(true);
     for (const object of this.objects) for (const collider of object.colliders) collider.box.applyMatrix4(this.root.matrix);

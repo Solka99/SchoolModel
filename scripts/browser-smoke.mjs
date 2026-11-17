@@ -67,8 +67,15 @@ try {
       await call('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:virtualKey});
     }
     if (!rushOnly) {
-    const counts = await evaluate(`({chairs:schoolRush.world.objects.filter(o=>o.kind==='chair').length,desks:schoolRush.world.objects.filter(o=>o.kind==='desk').length,assets:schoolRush.models.templates.size})`);
-    assert.deepEqual(counts, { chairs: 424, desks: 420, assets: 5 });
+    const counts = await evaluate(`({chairs:schoolRush.world.objects.filter(o=>o.kind==='chair').length,desks:schoolRush.world.objects.filter(o=>o.kind==='desk').length,assets:schoolRush.models.templates.size,batches:schoolRush.world.school.batchedFurnitureMeshes,drawCalls:schoolRush.renderer.info.render.calls})`);
+    assert.deepEqual({ chairs: counts.chairs, desks: counts.desks, assets: counts.assets }, { chairs: 1696, desks: 1680, assets: 5 });
+    assert.ok(counts.batches >= counts.chairs + counts.desks, 'Student furniture is rendered in instanced batches');
+    const renderStats = await evaluate(`(()=>{let pointLights=0;schoolRush.world.scene.traverse(o=>{if(o.isPointLight)pointLights++});return {batches:schoolRush.world.school.instanceMeshes.length,batchedBoxes:schoolRush.world.school.batchedBoxMeshes,pointLights}})()`);
+    console.log('Initial scene render stats:', JSON.stringify(renderStats), `${counts.batches} furniture meshes`, `${counts.drawCalls} draw calls`);
+    assert.ok(renderStats.batchedBoxes > 500, 'School structure is rendered in instanced batches');
+    assert.ok(renderStats.batches < 60, 'Static batches should be grouped by corridor instead of the entire school or every classroom');
+    assert.ok(renderStats.pointLights <= 20, 'Room and corridor lighting should stay within the light budget');
+    assert.ok(counts.drawCalls < 200, `School scene still has too many draw calls: ${counts.drawCalls}`);
     // A real mouse click tests the user-gesture boundary for Pointer Lock.
     const button = await evaluate(`(()=>{const r=document.querySelector('#start-button').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);
     await call('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...button });
@@ -85,7 +92,8 @@ try {
     const movementState = await evaluate(`({running:schoolRush.running,locked:!!document.pointerLockElement,keys:[...schoolRush.input.keys],feet:schoolRush.player.feet.toArray(),visible:!document.hidden})`);
     await call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'w', code: 'KeyW' });
     assert.ok((await evaluate('schoolRush.player.feet.x')) > startX + 0.1, 'Captured keyboard moves the player: '+JSON.stringify(movementState));
-    console.log('Pointer Lock and keyboard movement: passed');
+    const activeDrawCalls = await evaluate('schoolRush.renderer.info.render.calls');
+    console.log('Pointer Lock and keyboard movement: passed; active draw calls:', activeDrawCalls);
     await evaluate(`schoolRush.pause(); document.querySelector('#welcome').hidden=true; schoolRush.view.sync(schoolRush.player.feet);`);
     await delay(100); await screenshot('classroom');
     const checks = await evaluate(`(async()=>{
@@ -117,7 +125,7 @@ try {
         g.interactions.activate();for(let i=0;i<120;i++)g.world.update(1/120,g.player.box);
         assert(door.angle===95,'Door opens without hitting player');
       }
-      assert(school.corridors.length===4&&school.rooms.length===4,'Four corridor sections and classrooms');
+      assert(school.corridors.length===4&&school.rooms.length===16,'Four corridors and sixteen classrooms');
       assert(!school.obstacles&&!school.gates.length,'Exploration has no challenge obstacles or gates');
       for(let i=0;i<4;i++){
         const end=segmentPoint(school.layout.corridors[i],0,school.layout.length/2);
@@ -132,12 +140,15 @@ try {
       assert(school.rooms.every(r=>r.classroom.lighting.on),'Room lights are independent');
       g.interactions.activate();assert(first.lighting.on,'Corridor lights turn back on');
       const visited=[];
-      for(let i=0;i<school.rooms.length;i++){
+      for(let i=0;i<4;i++){
         const room=school.rooms[i],c=room.classroom,doorZ=school.layout.metrics.doorCenterZ;
         if(i>0){
-          const previous=school.layout.corridors[i-1],next=school.layout.corridors[i];
-          move(...segmentPoint(previous,0,school.layout.length/2-0.8));
-          move(...segmentPoint(next,0,-school.layout.length/2+0.8));
+          const previousRoom=school.rooms[i-1];
+          if(previousRoom.corridorIndex!==room.corridorIndex){
+            const previous=school.layout.corridors[previousRoom.corridorIndex],next=school.layout.corridors[room.corridorIndex];
+            move(...segmentPoint(previous,0,school.layout.length/2-0.8));
+            move(...segmentPoint(next,0,-school.layout.length/2+0.8));
+          }
         }
         const outside=roomPoint(room,-room.side*(c.metrics.roomWidth/2+1.3),doorZ);
         move(...outside);open(c.door);
@@ -154,12 +165,12 @@ try {
         assert(g.interactions.edit(c.blackboard),'Board editor opens in room '+room.number);
         g.editor.input.value='Room '+room.number;g.editor.sync();g.editor.close();assert(c.blackboard.text==='Room '+room.number,'Board state saved');
         visited.push(room.number);
-        const corridorPoint=segmentPoint(school.layout.corridors[i],0,school.layout.rooms[i].localOrigin[2]+doorZ);
+        const corridorPoint=segmentPoint(school.layout.corridors[room.corridorIndex],0,school.layout.rooms[i].localOrigin[2]+doorZ);
         move(...corridorPoint);
       }
-      assert(new Set(school.rooms.map(r=>r.classroom.blackboard.text)).size===4,'Boards have independent state');
+      assert(new Set(school.rooms.slice(0,4).map(r=>r.classroom.blackboard.text)).size===4,'Boards have independent state');
       g.rebuild({seatRows:4,seatCols:3,corridorWidth:3,frontMargin:1.5,roomHeight:3.2});
-      assert(g.world.objects.filter(o=>o.kind==='desk').length===144,'Rebuild counts');
+      assert(g.world.objects.filter(o=>o.kind==='desk').length===576,'Rebuild counts');
       assert(g.world.school.corridors.length===4&&g.world.school.rooms.every(r=>r.classroom.lighting.on),'Rebuild preserves the square layout');
       assert(!g.interactions.editing&&!g.interactions.seated,'Rebuild clears interaction state');
       g.rebuild();g.respawn();g.previewCamera();g.renderer.render(g.world.scene,g.view.camera);

@@ -34,7 +34,7 @@ test('activation rechecks aim and range instead of using a stale target; busy ob
   const camera = new PerspectiveCamera(); camera.position.set(0, 1, 0); camera.lookAt(0, 1, -1); camera.updateMatrixWorld();
   const target = new Mesh(new BoxGeometry(1, 2, 0.1), new MeshBasicMaterial()); target.position.set(0, 1, -1.5); target.updateMatrixWorld();
   let count = 0; const owner = { interactable: true, canInteract: false, interact: () => count++ }; target.userData.owner = owner;
-  const system = new InteractionSystem({ view: { camera }, world: { pickables: [target] } });
+  const system = new InteractionSystem({ view: { camera }, world: { pickables: [target], activate() {} } });
   assert.equal(system.activate(), false); assert.equal(count, 0);
   owner.canInteract = true; assert.equal(system.activate(), true); assert.equal(count, 1);
   system.target = owner; target.position.z = -5; target.updateMatrixWorld();

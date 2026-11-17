@@ -10,8 +10,12 @@ export class TargetHighlight {
   }
   show(object) {
     if (!object) { this.clear(); return; }
-    object.root.updateWorldMatrix(true, true);
-    this.box.setFromObject(object.root).expandByScalar(0.012);
+    if (object.pickBounds) this.box.copy(object.pickBounds);
+    else {
+      object.root.updateWorldMatrix(true, true);
+      this.box.setFromObject(object.root);
+    }
+    this.box.expandByScalar(0.012);
     this.helper.visible = !this.box.isEmpty();
   }
   clear() { this.helper.visible = false; }
