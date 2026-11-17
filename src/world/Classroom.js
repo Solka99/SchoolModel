@@ -103,11 +103,10 @@ export class Classroom {
       fixtures.push(strip.mesh.material);
     }
     const height = p.roomHeight - 0.25;
-    const distance = Math.max(9, Math.hypot(m.roomWidth / 2, m.roomDepth / 4, height) * 1.25);
-    this.lighting = this.add(new LightCircuit(this.label, [0.28, 0.72].map((fraction, i) => ({
-      position: [(i ? 1 : -1) * m.roomWidth * 0.18, height, m.zFront + m.roomDepth * fraction],
-      intensity: 65 * (height / 3.75) ** 2, distance,
-    })), fixtures));
+    const distance = Math.max(9, Math.hypot(m.roomWidth / 2, m.roomDepth / 2, height) * 1.25);
+    this.lighting = this.add(new LightCircuit(this.label, [{
+      position: [0, height, m.centerZ], intensity: 110 * (height / 3.75) ** 2, distance,
+    }], fixtures));
     this.lightSwitch = this.add(new LightSwitch(this.lighting,
       [p.doorOnLeft ? m.xLeft + 0.035 : m.xRight - 0.035, 1.35, m.doorCenterZ + 0.85],
       p.doorOnLeft ? Math.PI / 2 : -Math.PI / 2));

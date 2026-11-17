@@ -1,4 +1,4 @@
-import { Box3, BoxGeometry, Mesh, MeshStandardMaterial, TorusGeometry } from 'three';
+import { Box3, BoxGeometry, Mesh, MeshStandardMaterial, TorusGeometry, Vector3 } from 'three';
 import { SceneObject } from '../world/SceneObject.js';
 import { Box } from '../objects/Box.js';
 import { boxAt, penetrates } from '../physics/Aabb.js';
@@ -35,10 +35,12 @@ export class FurnitureBlock extends CompositeObstacle {
 
 export class CleaningCart extends CompositeObstacle {
   constructor(width, position = [0, 0, 0], yaw = 0, phase = 0) {
-    super('cleaning-cart'); this.kind = 'cleaning-cart'; this.dynamic = true; this.interactable = true;
+    super('cleaning-cart'); this.kind = 'cleaning-cart'; this.dynamic = true; this.alwaysUpdate = true; this.interactable = true;
     this.label = 'Moving cleaning cart'; this.elapsed = phase; this.cooldown = 0; this.contact = false;
     this.amplitude = width / 2 - 0.5; this.basePosition = [...position]; this.yaw = yaw;
     this.offset = Math.sin(phase * Math.PI / 3) * this.amplitude;
+    this.nextPosition = new Vector3();
+    this.nextCollider = new Box3();
     this.box('cart-body', [0, 0.55, 0], [0.7, 0.85, 0.7], '#537a72');
     this.box('cart-top', [0, 1.03, 0], [0.78, 0.1, 0.78], '#e2c484');
     this.box('cart-handle', [0, 1.25, 0.28], [0.64, 0.08, 0.08], '#314b41');
@@ -46,34 +48,33 @@ export class CleaningCart extends CompositeObstacle {
     this.root.position.set(
       position[0] + Math.cos(yaw) * this.offset, position[1], position[2] - Math.sin(yaw) * this.offset,
     ); this.root.rotation.y = yaw;
-    this.root.updateMatrixWorld(true); this.collider = this.addCollider(new Box3().setFromObject(this.root));
+    this.root.updateMatrixWorld(true);
+    this.collider = this.addCollider(this.cartBounds(this.root.position.x, this.root.position.y, this.root.position.z));
+  }
+  cartBounds(x, y, z) {
+    return new Box3(new Vector3(x - 0.39, y, z - 0.39), new Vector3(x + 0.39, y + 1.33, z + 0.39));
   }
   get canInteract() { return false; }
   get message() { return 'Watch the cleaning cart'; }
   get detail() { return 'Contact costs 2 seconds · wait or go around'; }
   update(dt, playerBox) {
     this.contact = false; this.cooldown = Math.max(0, this.cooldown - dt);
-    const nextTime = this.elapsed + dt, previousOffset = this.offset;
+    const nextTime = this.elapsed + dt;
     const nextOffset = Math.sin(nextTime * Math.PI / 3) * this.amplitude;
-    this.root.position.set(
+    this.nextPosition.set(
       this.basePosition[0] + Math.cos(this.yaw) * nextOffset,
       this.basePosition[1],
       this.basePosition[2] - Math.sin(this.yaw) * nextOffset,
     );
-    this.root.updateMatrixWorld(true);
-    const proposed = new Box3().setFromObject(this.root);
-    if (playerBox && penetrates(playerBox, proposed)) {
-      this.offset = previousOffset;
-      this.root.position.set(
-        this.basePosition[0] + Math.cos(this.yaw) * previousOffset,
-        this.basePosition[1],
-        this.basePosition[2] - Math.sin(this.yaw) * previousOffset,
-      );
-      this.root.updateMatrixWorld(true);
+    this.nextCollider.min.set(this.nextPosition.x - 0.39, this.nextPosition.y, this.nextPosition.z - 0.39);
+    this.nextCollider.max.set(this.nextPosition.x + 0.39, this.nextPosition.y + 1.33, this.nextPosition.z + 0.39);
+    if (playerBox && penetrates(playerBox, this.nextCollider)) {
       if (this.cooldown <= 0) { this.contact = true; this.cooldown = 2.5; }
-      return;
+      return true;
     }
-    this.elapsed = nextTime; this.offset = nextOffset; this.collider.box.copy(proposed);
+    this.root.position.copy(this.nextPosition);
+    this.elapsed = nextTime; this.offset = nextOffset; this.collider.box.copy(this.nextCollider);
+    return true;
   }
 }
 
@@ -105,19 +106,20 @@ export class KeyedGate extends SceneObject {
     this.game.onGateUnlocked(this);
   }
   update(dt) {
-    if (!this.moving) return;
+    if (!this.moving) return false;
     this.lift = Math.min(this.openHeight, this.lift + this.liftSpeed * dt);
     if (this.lift >= this.openHeight - 1e-9) this.lift = this.openHeight;
     this.panel.position.y = 1.1 + this.lift;
     this.root.updateMatrixWorld(true);
     this.collider.box.setFromObject(this.panel);
     if (this.lift === this.openHeight) this.moving = false;
+    return this.moving;
   }
 }
 
 export class KeyPickup extends SceneObject {
   constructor(position, room, game) {
-    super('classroom-key'); this.kind = 'key'; this.interactable = true; this.dynamic = true;
+    super('classroom-key'); this.kind = 'key'; this.interactable = true; this.dynamic = true; this.alwaysUpdate = true;
     this.label = `Key in Room ${room.number}`; this.room = room; this.game = game; this.collected = false;
     const material = new MeshStandardMaterial({ color: '#e5b94f', metalness: 0.55, roughness: 0.35 });
     const ring = new Mesh(new TorusGeometry(0.13, 0.045, 8, 18), material);

@@ -33,7 +33,8 @@ export class InteractionSystem {
   }
   update() {
     const g = this.game;
-    this.target = this.editing || this.seated ? null : this.findTarget(g.view.camera, g.world.pickables);
+    const roots = g.world.pickablesNear?.(g.view.camera.position) || g.world.pickables;
+    this.target = this.editing || this.seated ? null : this.findTarget(g.view.camera, roots);
     this.highlight?.show(this.target);
     const object = this.target || this.seated;
     g.hud.setPrompt(this.target?.message || (this.seated ? 'Stand up' : ''), this.seated ? 'SPACE' : 'E', {
@@ -44,9 +45,10 @@ export class InteractionSystem {
   }
   activate() {
     if (this.seated || this.editing) return false;
-    this.target = this.findTarget(this.game.view.camera, this.game.world.pickables);
+    const roots = this.game.world.pickablesNear?.(this.game.view.camera.position) || this.game.world.pickables;
+    this.target = this.findTarget(this.game.view.camera, roots);
     if (!this.target || this.target.canInteract === false) return false;
-    this.target.interact(this); return true;
+    this.game.world.activate(this.target); this.target.interact(this); return true;
   }
   notify(message) { this.game.hud.toast(message); }
   sit(chair) {
@@ -56,7 +58,7 @@ export class InteractionSystem {
     this.seated = chair; this.clearTarget();
     g.player.reset(new Vector3(chair.seat.x, chair.seat.y - 1.02, chair.seat.z));
     g.view.yaw = chair.facing; g.view.pitch = 0;
-    g.hud.mode('TAKE YOUR TIME · SPACE TO STAND');
+    g.hud.mode('SEATED · SPACE TO STAND');
     return true;
   }
   stand() {
@@ -69,7 +71,7 @@ export class InteractionSystem {
       .find(p => !g.player.blocked(p, g.world.colliders));
     g.player.reset(position || new Vector3(...g.world.school.spawn));
     g.view.yaw = this.previous.yaw; g.view.pitch = this.previous.pitch;
-    this.seated = null; this.previous = null; g.hud.mode(g.rush?.active ? 'SCHOOL RUSH · GET TO CLASS' : 'SCHOOL EXPLORER');
+    this.seated = null; this.previous = null; g.hud.mode(g.rush?.active ? 'CHALLENGE' : 'EXPLORE');
   }
   edit(board) {
     if (this.seated || this.editing) return false;

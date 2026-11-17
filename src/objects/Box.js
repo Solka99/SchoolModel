@@ -3,6 +3,7 @@ import { SceneObject } from '../world/SceneObject.js';
 import { boxAt } from '../physics/Aabb.js';
 
 const unitBox = new BoxGeometry(1, 1, 1);
+unitBox.clearGroups();
 export class Box extends SceneObject {
   constructor(name, center, size, color, { autoSteppable = false, solid = true, roughness = 0.85 } = {}) {
     super(name);

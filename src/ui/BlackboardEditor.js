@@ -19,6 +19,7 @@ export class BlackboardEditor {
   sync() {
     this.input.value = this.input.value.slice(0, 200);
     if (this.board) this.board.setText(this.input.value);
+    this.game.renderPending = true;
     document.querySelector('#character-count').textContent = `${this.input.value.length} / 200`;
   }
   finish(notify = true) {

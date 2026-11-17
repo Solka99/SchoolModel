@@ -17,7 +17,7 @@ The entrance is on the inner side of the north corridor, several metres away fro
 
 One key is placed randomly inside a classroom in the reachable corridor whose barrier is next on the selected route. The HUD names its classroom. Collect it with E, then use it to raise that barrier. Raising a barrier consumes the key and makes the next corridor reachable; its key is then placed in that corridor. A key never spawns beyond a closed barrier. Keys are reset with every new run.
 
-Choose a destination and start a 45-second rush. The countdown begins only after Pointer Lock succeeds. The player starts near the entrance, and wins only after entering the selected classroom. A wrong classroom does not win. Expiry takes priority over arrival at the deadline. Escape, lost pointer lock, focus/visibility loss, help, and board editing pause the same run and stop obstacle movement.
+Choose a destination and a time limit (30, 45, 60, 90, or 120 seconds) before starting a rush. The countdown begins only after Pointer Lock succeeds. The player starts near the entrance, and wins only after entering the selected classroom. A wrong classroom does not win. Expiry takes priority over arrival at the deadline. Escape, lost pointer lock, focus/visibility loss, help, and board editing pause the same run and stop obstacle movement.
 
 R resets to a ready screen. Retry creates a fresh school challenge; leaving the run returns to obstacle-free exploration. School settings are unavailable during a challenge. Rebuilding resets classroom state, keys, corridor barriers, obstacles, timer, and penalties.
 
