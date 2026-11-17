@@ -66,7 +66,7 @@ export class Game {
     this.view.camera.lookAt(x + 8, 1.5, z); this.view.camera.updateMatrixWorld(true);
     this.renderPending = true;
   }
-  rebuild(params, { targetRoom = null } = {}) {
+  rebuild(params, { targetRoom = null, challengeSeconds = 45 } = {}) {
     // Construct before removing the old school, so failed construction is recoverable.
     const nextSchool = new School(this.models, params, { challenge: Boolean(targetRoom), game: this });
     this.pause(); this.editor.reset(); this.interactions.clear(); this.debug.clear();
@@ -74,16 +74,20 @@ export class Game {
     this.world.setSchool(nextSchool); this.respawn(); this.debug.rebuild(this.world.colliders);
     this.renderPending = true;
     if (targetRoom) {
-      this.rush.prepare(nextSchool.rooms.find(r => r.number === targetRoom) || nextSchool.rooms.at(-1));
+      this.rush.prepare(
+        nextSchool.rooms.find(r => r.number === targetRoom) || nextSchool.rooms.at(-1),
+        challengeSeconds,
+      );
       if (this.rush.nextGateIndex !== null) this.placeNextKey();
     }
     if (!this.started) this.previewCamera();
-    this.parameters?.sync(); this.hud.describeSchool(nextSchool); this.hud.mode(targetRoom ? 'SCHOOL RUSH · READY' : 'SCHOOL EXPLORER');
+    this.parameters?.sync(); this.hud.describeSchool(nextSchool); this.hud.mode(targetRoom ? 'CHALLENGE' : 'EXPLORE');
     this.hud.setRun(this.rush, nextSchool);
   }
   beginRush({ lock = true } = {}) {
     const targetRoom = document.querySelector('#target-room').value || '103';
-    this.rebuild(this.world.school.params, { targetRoom });
+    const challengeSeconds = Number(document.querySelector('#challenge-time').value);
+    this.rebuild(this.world.school.params, { targetRoom, challengeSeconds });
     if (lock) this.input.lock();
   }
   placeNextKey() {
@@ -94,14 +98,13 @@ export class Game {
     if (!classrooms.length) throw new Error(`No reachable classroom in corridor ${corridorIndex + 1} for the next key.`);
     const room = classrooms[Math.floor(Math.random() * classrooms.length)];
     const key = school.spawnKey(room, this);
-    this.world.pickables.push(key.root); this.world.activate(key);
+    this.world.addPickable(key.root); this.world.activate(key);
     this.rush.setKeyRoom(room.number);
   }
   collectKey(key) {
     const school = this.world.school;
     if (school.activeKey !== key || !this.rush.collectKey(key.room.number)) return false;
-    const pickableIndex = this.world.pickables.indexOf(key.root);
-    if (pickableIndex >= 0) this.world.pickables.splice(pickableIndex, 1);
+    this.world.removePickable(key.root);
     this.world.dynamic.delete(key);
     key.collected = true; key.root.visible = false; school.activeKey = null;
     this.hud.toast(`Key collected from Room ${key.room.number}`);
@@ -119,7 +122,7 @@ export class Game {
     this.player.reset(new Vector3(...this.world.school.spawn));
     this.view.yaw = Math.PI / 2 - this.world.school.layout.corridors[0].yaw;
     this.view.pitch = 0; this.view.sync(this.player.feet);
-    this.hud.mode(this.rush.active ? 'SCHOOL RUSH · GET TO CLASS' : 'SCHOOL EXPLORER'); this.hud.location(this.world.school.locationAt(this.player.feet));
+    this.hud.mode(this.rush.active ? 'CHALLENGE' : 'EXPLORE'); this.hud.location(this.world.school.locationAt(this.player.feet));
   }
   onLock(locked) {
     this.accumulator = 0;
@@ -127,7 +130,7 @@ export class Game {
       if (this.rush.finished) { this.input.unlock(); return; }
       this.lastTime = null;
       this.rush.start(); this.running = true; this.started = true; this.hud.playing(); this.view.sync(this.player.feet, this.player.eyeStepOffset);
-      this.hud.mode(this.rush.active ? 'SCHOOL RUSH · GET TO CLASS' : 'SCHOOL EXPLORER');
+      this.hud.mode(this.rush.active ? 'CHALLENGE' : 'EXPLORE');
       this.hud.setRun(this.rush, this.world.school);
     } else this.pause();
   }
@@ -141,7 +144,7 @@ export class Game {
     this.running = false; this.accumulator = 0; this.lastTime = null;
     this.editor.reset(); this.input.unlock(); this.interactions.clearTarget();
     this.hud.paused(this.started, true); this.hud.setRun(this.rush, this.world.school);
-    this.hud.mode(this.rush.state === 'won' ? 'ON TIME · CLASS REACHED' : 'THE BELL HAS RUNG');
+    this.hud.mode(this.rush.state === 'won' ? 'WON' : 'TIME UP');
   }
   advanceRace(seconds) {
     const previousState = this.rush.state, previousDisplay = this.rush.timer.display;

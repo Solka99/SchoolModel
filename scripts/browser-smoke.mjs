@@ -70,11 +70,12 @@ try {
     const counts = await evaluate(`({chairs:schoolRush.world.objects.filter(o=>o.kind==='chair').length,desks:schoolRush.world.objects.filter(o=>o.kind==='desk').length,assets:schoolRush.models.templates.size,batches:schoolRush.world.school.batchedFurnitureMeshes,drawCalls:schoolRush.renderer.info.render.calls})`);
     assert.deepEqual({ chairs: counts.chairs, desks: counts.desks, assets: counts.assets }, { chairs: 1696, desks: 1680, assets: 5 });
     assert.ok(counts.batches >= counts.chairs + counts.desks, 'Student furniture is rendered in instanced batches');
-    const renderStats = await evaluate(`(()=>{let pointLights=0;schoolRush.world.scene.traverse(o=>{if(o.isPointLight)pointLights++});return {batches:schoolRush.world.school.instanceMeshes.length,batchedBoxes:schoolRush.world.school.batchedBoxMeshes,pointLights}})()`);
+    const renderStats = await evaluate(`(()=>{let pointLights=0;schoolRush.world.scene.traverse(o=>{if(o.isPointLight)pointLights++});return {batches:schoolRush.world.school.instanceMeshes.length,batchedBoxes:schoolRush.world.school.batchedBoxMeshes,pointLights,pickables:schoolRush.world.pickables.length,nearbyPickables:schoolRush.world.pickablesNear(schoolRush.view.camera.position).length}})()`);
     console.log('Initial scene render stats:', JSON.stringify(renderStats), `${counts.batches} furniture meshes`, `${counts.drawCalls} draw calls`);
     assert.ok(renderStats.batchedBoxes > 500, 'School structure is rendered in instanced batches');
     assert.ok(renderStats.batches < 60, 'Static batches should be grouped by corridor instead of the entire school or every classroom');
     assert.ok(renderStats.pointLights <= 20, 'Room and corridor lighting should stay within the light budget');
+    assert.ok(renderStats.nearbyPickables < renderStats.pickables / 2, 'Interaction raycasts should only inspect local objects');
     assert.ok(counts.drawCalls < 200, `School scene still has too many draw calls: ${counts.drawCalls}`);
     // A real mouse click tests the user-gesture boundary for Pointer Lock.
     const button = await evaluate(`(()=>{const r=document.querySelector('#start-button').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);

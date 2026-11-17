@@ -1,6 +1,6 @@
 # School Rush
 
-A browser-based Three.js school game, migrated from the original `pg3d` university lecture hall. Phase 4 is implemented: race from the entrance to your designated classroom before a 45-second countdown expires. Explore four corridors connected in a square, find classroom keys, unlock the route, avoid moving carts, and reach class. Obstacle-free exploration retains all classroom interactions from Phases 1–3.
+A browser-based Three.js school game, migrated from the original `pg3d` university lecture hall. Choose a challenge duration and race from the entrance to your designated classroom. Explore four corridors connected in a square, find classroom keys, unlock the route, avoid moving carts, and reach class. Obstacle-free exploration retains all classroom interactions from Phases 1–3.
 
 ## Run locally
 
@@ -13,11 +13,11 @@ npm run dev
 
 Open the URL printed by Vite (normally `http://127.0.0.1:5173`). On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`.
 
-Choose a destination, then click **Start a 45-second rush** to capture the mouse and begin the countdown. The school has sixteen classrooms—**101–116**, with Mathematics, Science, Literature, and History subjects—four along the outside of each side of the square corridor loop. The north entrance facade is marked by an exterior sign and canopy, with the wall beneath it sealed. You start near this facade. The key location is shown in the HUD; each key appears in a classroom in the currently reachable corridor leading to the next barrier. Press E to collect one and raise that barrier. Each raised barrier leads to the next corridor, where its key can be found. Open the target classroom door and get fully inside before time expires. Entering another classroom does not end the run.
+To test on a second laptop without installing development tools there, connect both laptops to the same trusted Wi-Fi. On the development laptop run `npm.cmd run dev -- --host 0.0.0.0`, find its local IPv4 address with `ipconfig`, and open `http://<that-address>:5173` in the other laptop's browser. Allow the server through Windows Firewall only on a private network if prompted. Stop the server with Ctrl+C when finished; the second laptop only needs a browser.
 
-The HUD shows remaining time, destination, and the key/door progress. Escape releases the mouse and pauses both the clock and obstacles. **Resume run** continues the same run. **Try again** after a win/loss starts fresh; **R** resets a run to its ready screen, where you click **Start run** to capture the mouse again. A failed mouse-capture request never starts the clock. Exploration requires a desktop keyboard and mouse.
+Choose a destination and a time limit (30, 45, 60, 90, or 120 seconds), then click **Start challenge**. The school has sixteen classrooms—**101–116**—along four connected corridors. Find the key shown in the HUD, press E to collect it, and use it to open the next corridor barrier. Avoid moving carts, open the target classroom door, and enter before time expires. Press Escape to pause; **R** resets a run. **Explore** starts without a timer or obstacles.
 
-**Explore the school** starts without a timer or obstacles. During a run, **Leave run & explore** abandons the challenge and returns to this mode. School dimensions can be changed in exploration; settings are locked while a timed run is ready, active, paused, or finished. Starting/restarting rebuilds the school using its current dimensions, resets doors, board text, lights, obstacle phases, timer, and penalties.
+School dimensions can be changed in **Settings** while exploring. Starting a new challenge resets doors, board text, lights, obstacles, timer, and penalties.
 
 | Obstacle | Behavior | How to pass |
 | --- | --- | --- |

@@ -10,10 +10,11 @@ export async function checkRush({ call, evaluate, screenshot, delay, key }) {
     for (let i = 0; i < 60; i++) { if (await evaluate(expression)) return; await delay(100); }
     throw new Error(message);
   }
-  await evaluate(`schoolRush.pause();document.querySelector('#target-room').value='103';`);
+  await evaluate(`schoolRush.pause();document.querySelector('#target-room').value='103';document.querySelector('#challenge-time').value='60';`);
   await click('#rush-button');
   await until(`schoolRush.rush.state==='running'&&!!document.pointerLockElement`, 'Rush starts after actual mouse capture');
-  await until(`schoolRush.rush.timer.remaining<44.9`, 'Active countdown advances');
+  assert.equal(await evaluate('schoolRush.rush.timer.duration'), 60, 'Selected challenge duration is used');
+  await until(`schoolRush.rush.timer.remaining<59.9`, 'Active countdown advances');
   await screenshot('rush-hud');
   await evaluate('document.exitPointerLock()');
   await until(`schoolRush.rush.state==='paused'`, 'Releasing the mouse pauses the run');
@@ -27,7 +28,7 @@ export async function checkRush({ call, evaluate, screenshot, delay, key }) {
   assert.ok((await evaluate('schoolRush.rush.timer.remaining')) <= paused, 'Resume does not reset the timer');
   await key('r', 'KeyR', 82);
   await until(`schoolRush.rush.state==='ready'&&!document.pointerLockElement`, 'R resets to ready with mouse released');
-  assert.equal(await evaluate('schoolRush.rush.timer.remaining'), 45);
+  assert.equal(await evaluate('schoolRush.rush.timer.remaining'), 60);
   console.log('Rush start, pause, resume, and R reset: passed');
 
   const report = await evaluate(`(()=>{
@@ -102,7 +103,7 @@ export async function checkRush({ call, evaluate, screenshot, delay, key }) {
   })()`);
   console.log('Key progression, destinations, and moving-cart runs:', JSON.stringify(report));
   await screenshot('rush-victory');
-  await evaluate(`schoolRush.beginRush({lock:false});schoolRush.rush.start();schoolRush.advanceRace(46);`);
+  await evaluate(`schoolRush.beginRush({lock:false});schoolRush.rush.start();schoolRush.advanceRace(schoolRush.rush.timer.duration+1);`);
   assert.equal(await evaluate('schoolRush.rush.state'), 'lost', 'Timeout loses');
   assert.equal(await evaluate('schoolRush.rush.timer.remaining'), 0);
   console.log('Rush timeout: passed');

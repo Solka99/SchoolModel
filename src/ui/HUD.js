@@ -9,13 +9,13 @@ export class HUD {
   }
   ready(school) {
     this.describeSchool(school);
-    this.start.disabled = false; this.start.innerHTML = 'Explore <span>→</span>';
+    this.start.disabled = false; this.start.textContent = 'Explore';
     document.querySelector('#rush-button').disabled = false;
-    this.status.textContent = 'Click to enter the school.';
+    this.status.textContent = 'Ready';
   }
   paused(hasStarted, hasRun = false) {
     this.welcome.hidden = false; document.body.classList.remove('playing'); this.setPrompt('');
-    if (hasStarted && !hasRun) { this.start.innerHTML = 'Back to school <span>→</span>'; this.status.textContent = 'Paused · click to continue.'; }
+    if (hasStarted && !hasRun) { this.start.textContent = 'Resume'; this.status.textContent = 'Paused'; }
   }
   playing() { this.welcome.hidden = true; document.body.classList.add('playing'); }
   setPrompt(message, key = 'E', { title = '', detail = '', available = true } = {}) {
@@ -59,14 +59,16 @@ export class HUD {
     if (clock.textContent !== run.timer.display) clock.textContent = run.timer.display;
     hud.classList.toggle('urgent', run.timer.remaining <= 10); hud.dataset.state = run.state;
     document.querySelector('#race-destination').textContent = run.target ? `ROOM ${run.target.number} / ${run.target.subject.toUpperCase()}` : '';
-    const routeText = run.state === 'won' ? 'Classroom reached' : run.state === 'lost' ? 'Time is up' :
-      run.state === 'paused' ? 'Timer and carts paused' : run.state === 'ready' ? 'Find the key and raise the barriers' :
-      run.hasKey ? `Key collected · raise barrier ${run.nextGateIndex + 1}` :
-      run.keyRoom ? `Find the key in Room ${run.keyRoom}` :
-      run.nextGateIndex !== null ? 'Find a key in an accessible classroom' : 'Barriers are raised · reach your classroom';
+    const routeText = run.state === 'won' ? 'Reached' : run.state === 'lost' ? 'Time up' :
+      run.state === 'paused' ? 'Paused' : run.state === 'ready' ? 'Find a key' :
+      run.hasKey ? `Open barrier ${run.nextGateIndex + 1}` :
+      run.keyRoom ? `Key: Room ${run.keyRoom}` :
+      run.nextGateIndex !== null ? 'Find a key' : 'Reach the room';
     const route = document.querySelector('#race-route'); if (route.textContent !== routeText) route.textContent = routeText;
     document.querySelector('#settings-button').disabled = run.active;
-    document.querySelector('#target-room').disabled = run.state === 'ready' || run.state === 'running' || run.state === 'paused';
+    const selectionLocked = run.state === 'ready' || run.state === 'running' || run.state === 'paused';
+    document.querySelector('#target-room').disabled = selectionLocked;
+    document.querySelector('#challenge-time').disabled = selectionLocked;
     document.querySelector('#rush-button').disabled = !this.start || this.start.disabled;
     if (this.runState === run.state) return;
     this.runState = run.state;
@@ -75,25 +77,25 @@ export class HUD {
     result.hidden = !run.finished;
     if (run.state === 'won') {
       title.textContent = 'You made it.';
-      intro.textContent = `You reached Room ${run.target.number} before the bell.`;
-      result.textContent = `${run.timer.display} left · ${run.hits} penalties · ${run.penaltySeconds}s lost`;
+      intro.textContent = `Room ${run.target.number}.`;
+      result.textContent = `${run.timer.display} left · ${run.hits} hits`;
     } else if (run.state === 'lost') {
       title.textContent = 'Time is up.';
-      intro.textContent = `Time ran out before you reached Room ${run.target.number}.`;
-      result.textContent = `${run.hits} penalties · ${run.penaltySeconds}s lost. A fresh run resets the obstacles and barriers.`;
+      intro.textContent = `Room ${run.target.number} was not reached.`;
+      result.textContent = `${run.hits} hits`;
     } else if (run.state === 'paused') {
       title.textContent = 'Run paused';
-      intro.textContent = `Paused at ${run.timer.display}. Continue to Room ${run.target.number}, or leave the run to explore.`;
+      intro.textContent = `Room ${run.target.number} · ${run.timer.display}`;
     } else if (run.state === 'ready') {
-      title.textContent = 'Choose a classroom';
-      intro.textContent = `Find a key, raise the corridor barriers, and reach Room ${run.target.number} in 45 seconds.`;
+      title.textContent = 'Challenge';
+      intro.textContent = `Reach Room ${run.target.number} in ${run.timer.duration} seconds.`;
     } else if (run.state === 'idle') {
-      title.textContent = 'Explore the school';
-      intro.textContent = 'Walk through the corridors, visit a classroom, or try to reach one before the 45-second timer runs out.';
+      title.textContent = 'School';
+      intro.textContent = 'Explore the halls or get to a classroom before time runs out.';
     }
-    primary.innerHTML = `${run.state === 'paused' ? 'Resume run' : run.state === 'ready' ? 'Start run' : run.finished ? 'Try again' : 'Start 45-second challenge'} <span>→</span>`;
-    this.start.innerHTML = `${run.active ? 'Leave run & explore' : 'Explore'} <span>→</span>`;
-    if (run.active) this.status.textContent = run.state === 'running' ? 'R restarts · Escape pauses' : 'Click to continue · R resets the run';
+    primary.textContent = run.state === 'paused' ? 'Resume' : run.state === 'ready' ? 'Start' : run.finished ? 'Try again' : 'Start challenge';
+    this.start.textContent = 'Explore';
+    if (run.active) this.status.textContent = run.state === 'running' ? 'Esc pauses · R resets' : 'Paused · R resets';
   }
   toast(message) {
     const toast = document.querySelector('#toast'); toast.textContent = message; toast.style.display = 'block';
@@ -102,6 +104,6 @@ export class HUD {
   error(error) {
     document.body.classList.add('fatal'); this.welcome.hidden = false;
     this.status.textContent = error.message || String(error); this.start.disabled = false;
-    this.start.innerHTML = 'Reload school <span>↻</span>'; this.start.onclick = () => location.reload();
+    this.start.textContent = 'Reload'; this.start.onclick = () => location.reload();
   }
 }

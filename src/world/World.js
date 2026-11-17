@@ -1,7 +1,8 @@
-import { Scene, Color } from 'three';
+import { Box3, Scene, Color } from 'three';
 
 const CELL_SIZE = 4;
 const COLLIDER_MARGIN = 1.5;
+const PICKABLE_MARGIN = 2.5;
 
 function cell(value) { return Math.floor(value / CELL_SIZE); }
 function cellKey(x, z) { return `${x},${z}`; }
@@ -10,15 +11,16 @@ export class World {
   constructor() {
     this.scene = new Scene(); this.scene.background = new Color('#d5dece');
     this.objects = []; this.colliders = []; this.pickables = [];
+    this.pickableGrid = new Map(); this.pickableCells = new Map();
+    this.pickableQuery = []; this.seenPickables = new Set();
   }
   setSchool(school) {
     this.clear(); this.school = school; this.objects = school.objects;
     this.scene.add(school.root);
     this.colliders = this.objects.flatMap(o => o.colliders);
-    this.pickables = [
-      ...this.objects.filter(object => object.interactable || object.root.children.length).map(object => object.root),
-      ...(school.pickableInstances || []),
-    ];
+    this.pickables = this.objects.filter(object => object.interactable || object.root.children.length)
+      .map(object => object.root);
+    this.pickables.push(...(school.pickableInstances || []));
     this.dynamic = new Set(this.objects.filter(o => o.alwaysUpdate));
     this.colliderGrid = new Map();
     for (const collider of this.colliders) {
@@ -31,6 +33,24 @@ export class World {
           this.colliderGrid.get(key).push(collider);
         }
       }
+    }
+    this.pickableGrid = new Map(); this.pickableCells = new Map();
+    const bounds = new Box3();
+    for (const root of this.pickables) {
+      const owner = root.userData.owner;
+      const pickBounds = owner?.pickBounds;
+      if (pickBounds) bounds.copy(pickBounds);
+      else bounds.setFromObject(root);
+      if (bounds.isEmpty()) continue;
+      const cells = [];
+      for (let x = cell(bounds.min.x - PICKABLE_MARGIN); x <= cell(bounds.max.x + PICKABLE_MARGIN); x++) {
+        for (let z = cell(bounds.min.z - PICKABLE_MARGIN); z <= cell(bounds.max.z + PICKABLE_MARGIN); z++) {
+          const key = cellKey(x, z);
+          if (!this.pickableGrid.has(key)) this.pickableGrid.set(key, []);
+          this.pickableGrid.get(key).push(root); cells.push(key);
+        }
+      }
+      this.pickableCells.set(root, cells);
     }
   }
   activate(object) { if (object.dynamic) this.dynamic.add(object); }
@@ -49,11 +69,53 @@ export class World {
     for (const object of this.dynamic) for (const collider of object.colliders) result.add(collider);
     return [...result];
   }
+  pickablesNear(position) {
+    this.pickableQuery.length = 0; this.seenPickables.clear();
+    const minX = cell(position.x - PICKABLE_MARGIN), maxX = cell(position.x + PICKABLE_MARGIN);
+    const minZ = cell(position.z - PICKABLE_MARGIN), maxZ = cell(position.z + PICKABLE_MARGIN);
+    for (let x = minX; x <= maxX; x++) for (let z = minZ; z <= maxZ; z++) {
+      for (const root of this.pickableGrid.get(cellKey(x, z)) || []) {
+        if (this.seenPickables.has(root)) continue;
+        this.seenPickables.add(root); this.pickableQuery.push(root);
+      }
+    }
+    return this.pickableQuery;
+  }
+  addPickable(root) {
+    if (this.pickables.includes(root)) return;
+    this.pickables.push(root);
+    const bounds = root.userData.owner?.pickBounds || new Box3().setFromObject(root);
+    if (bounds.isEmpty()) return;
+    const cells = [];
+    for (let x = cell(bounds.min.x - PICKABLE_MARGIN); x <= cell(bounds.max.x + PICKABLE_MARGIN); x++) {
+      for (let z = cell(bounds.min.z - PICKABLE_MARGIN); z <= cell(bounds.max.z + PICKABLE_MARGIN); z++) {
+        const key = cellKey(x, z);
+        if (!this.pickableGrid.has(key)) this.pickableGrid.set(key, []);
+        this.pickableGrid.get(key).push(root); cells.push(key);
+      }
+    }
+    this.pickableCells.set(root, cells);
+  }
+  removePickable(root) {
+    const cells = this.pickableCells.get(root);
+    if (cells) {
+      for (const key of cells) {
+        const roots = this.pickableGrid.get(key);
+        const index = roots.indexOf(root);
+        if (index >= 0) roots.splice(index, 1);
+        if (!roots.length) this.pickableGrid.delete(key);
+      }
+      this.pickableCells.delete(root);
+    }
+    const index = this.pickables.indexOf(root);
+    if (index >= 0) this.pickables.splice(index, 1);
+  }
   clear() {
     if (this.school) this.scene.remove(this.school.root);
     this.school?.disposeInstances?.();
     for (const o of this.objects) o.dispose();
     this.objects = []; this.colliders = []; this.pickables = []; this.dynamic = new Set();
-    this.colliderGrid = new Map(); this.school = null;
+    this.colliderGrid = new Map(); this.pickableGrid.clear(); this.pickableCells.clear();
+    this.pickableQuery.length = 0; this.seenPickables.clear(); this.school = null;
   }
 }

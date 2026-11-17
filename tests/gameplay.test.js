@@ -22,6 +22,15 @@ test('ready and paused runs do not consume time; full active deltas do', () => {
   game.pause(); game.update(100, outside); assert.equal(game.timer.remaining, 41.3);
   game.start(); game.update(4, outside); assert.ok(Math.abs(game.timer.remaining - 37.3) < 1e-6);
 });
+test('challenge uses the selected duration and resets to that duration', () => {
+  const game = new GameManager();
+  game.prepare(room, 90);
+  assert.equal(game.timer.duration, 90);
+  assert.equal(game.timer.remaining, 90);
+  game.start(); game.update(12, outside); game.pause();
+  game.prepare(room, 90);
+  assert.equal(game.timer.remaining, 90);
+});
 test('countdown is independent of render-frame partitions', () => {
   for (const fps of [30, 60, 120]) {
     const game = new GameManager(); game.prepare(room); game.start();
