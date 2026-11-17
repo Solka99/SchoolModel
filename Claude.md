@@ -1,1 +1,0 @@
-Remember: School model should have no holes in the walls, only exception is when a wall has a door.
