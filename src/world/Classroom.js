@@ -1,7 +1,7 @@
 import { Group, Matrix4, Vector3 } from 'three';
 import { DEFAULTS, normalizeParams, computeMetrics } from '../config/classroom.js';
 import { HStack, VStack } from './Layout.js';
-import { roomBox, PALETTE as C } from './prefabs.js';
+import { roomBox, PALETTE as C, TEACHER_DESK_SIZE } from './prefabs.js';
 import { Chair } from '../objects/Chair.js';
 import { StudentDesk } from '../objects/StudentDesk.js';
 import { Door } from '../objects/Door.js';
@@ -79,7 +79,7 @@ export class Classroom {
       }
     }
     this.blackboard = this.add(new Blackboard([0, 1.6, m.zFront + 0.03], p.blackboardWidth, p.blackboardHeight));
-    this.box('teacher-desk', [0, 0.4, 0], [1.8, 0.8, 0.7], C.wood);
+    this.box('teacher-desk', [0, 0.4, 0], TEACHER_DESK_SIZE, C.wood);
     this.add(new Chair(models, [0, 0, Math.max(-1.6, m.zFront + 0.35)], true));
     for (const t of tierSlots(p, m)) {
       this.box('seating-tier', t.center, t.size, C.step, { autoSteppable: true });

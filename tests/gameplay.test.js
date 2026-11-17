@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Vector3 } from 'three';
 import { Timer } from '../src/gameplay/Timer.js';
 import { GameManager } from '../src/gameplay/GameManager.js';
-import { CleaningCart, FurnitureBlock, KeyedGate, createObstacles } from '../src/gameplay/Obstacles.js';
+import { MovingObstacle, TeacherDeskObstacle, KeyedGate, createObstacles } from '../src/gameplay/Obstacles.js';
 import { boxAt, penetrates } from '../src/physics/Aabb.js';
 
 const room = { number: '103', subject: 'Literature', bounds: { minX: 2.4, maxX: 17.1, minZ: 19.85, maxZ: 33.3 } };
@@ -87,26 +87,29 @@ test('keyed corridor barrier rises vertically and clears its collision bounds', 
   assert.ok(gate.panel.position.y > 1.1, 'Barrier translates upward instead of rotating');
   gate.dispose();
 });
-test('cart movement is deterministic and stops rather than pushing through the player', () => {
-  const a = new CleaningCart(4.4, [0, 0, 6.45]), b = new CleaningCart(4.4, [0, 0, 6.45]);
+test('moving obstacles move deterministically and stop rather than pushing through the player', () => {
+  const a = new MovingObstacle(4.4, [0, 0, 6.45]), b = new MovingObstacle(4.4, [0, 0, 6.45]);
   for (let i = 0; i < 120; i++) a.update(1 / 120);
   for (let i = 0; i < 60; i++) b.update(1 / 60);
   assert.ok(Math.abs(a.root.position.x - b.root.position.x) < 1e-6);
-  const cart = new CleaningCart(4.4, [0, 0, 6.45]), player = boxAt([0.6, 0.9, 6.45], [0.4, 1.8, 0.4]);
+  const obstacle = new MovingObstacle(4.4, [0, 0, 6.45]), player = boxAt([0.6, 0.9, 6.45], [0.4, 1.8, 0.4]);
   let contacts = 0;
-  for (let i = 0; i < 120; i++) { cart.update(1 / 120, player); if (cart.contact) contacts++; }
-  assert.equal(contacts, 1); assert.equal(penetrates(cart.collider.box, player), false);
-  assert.ok(cart.elapsed < 0.1); // Its phase freezes too, preventing a later teleport across the player.
-  a.dispose(); b.dispose(); cart.dispose();
+  for (let i = 0; i < 120; i++) { obstacle.update(1 / 120, player); if (obstacle.contact) contacts++; }
+  assert.equal(contacts, 1); assert.equal(penetrates(obstacle.collider.box, player), false);
+  assert.ok(obstacle.elapsed < 0.1); // Its phase freezes too, preventing a later teleport across the player.
+  assert.equal(obstacle.root.name, 'moving-obstacle');
+  assert.equal(obstacle.label, 'Moving obstacle');
+  assert.equal(obstacle.root.children.length, 5, 'The obstacle has one body and four wheels');
+  a.dispose(); b.dispose(); obstacle.dispose();
 });
-test('cart shuttles follow the orientation of a turned corridor', () => {
-  const cart = new CleaningCart(4.4, [0, 0, 0], Math.PI / 2);
-  const before = cart.root.position.clone(); cart.update(0.25);
-  assert.ok(Math.abs(cart.root.position.z - before.z) > 0.1);
-  assert.ok(Math.abs(cart.root.position.x - before.x) < 1e-6);
-  cart.dispose();
+test('moving obstacles follow the orientation of a turned corridor', () => {
+  const obstacle = new MovingObstacle(4.4, [0, 0, 0], Math.PI / 2);
+  const before = obstacle.root.position.clone(); obstacle.update(0.25);
+  assert.ok(Math.abs(obstacle.root.position.z - before.z) > 0.1);
+  assert.ok(Math.abs(obstacle.root.position.x - before.x) < 1e-6);
+  obstacle.dispose();
 });
-test('each corridor has a line of three side-to-side carts, with no timed passage', () => {
+test('each corridor has a line of three side-to-side moving obstacles, with no timed passage', () => {
   const layout = {
     params: { corridorWidth: 4.4 },
     corridors: Array.from({ length: 4 }, (_, index) => ({
@@ -114,13 +117,15 @@ test('each corridor has a line of three side-to-side carts, with no timed passag
     })),
   };
   const obstacles = createObstacles(layout, {}, layout.corridors);
-  assert.equal(obstacles.carts.length, 12);
+  assert.equal(obstacles.movingObstacles.length, 12);
   assert.equal(obstacles.objects.some(object => object.kind === 'timed-passage'), false);
-  assert.equal(new Set(obstacles.carts.map(cart => cart.root.position.z)).size > 1, true);
+  assert.equal(new Set(obstacles.movingObstacles.map(obstacle => obstacle.root.position.z)).size > 1, true);
   for (const object of obstacles.objects) object.dispose();
 });
-test('furniture leaves a walkable lane even in the narrowest corridor', () => {
-  const obstacle = new FurnitureBlock(3);
+test('a reused teacher desk leaves a walkable lane even in the narrowest corridor', () => {
+  const obstacle = new TeacherDeskObstacle(3);
+  assert.equal(obstacle.parts[0].root.name, 'teacher-desk');
+  assert.deepEqual(obstacle.parts[0].mesh.scale.toArray(), [1.8, 0.8, 0.7]);
   assert.ok(1.5 - obstacle.colliders[0].box.max.x > 0.8);
   assert.equal(penetrates(obstacle.colliders[0].box, boxAt([1.1, 0.9, 0], [0.4, 1.8, 0.4])), false);
   assert.equal(obstacle.colliders[0].autoSteppable, false); obstacle.dispose();

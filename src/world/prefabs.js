@@ -2,6 +2,7 @@ import { AmbientLight, DirectionalLight } from 'three';
 import { Box } from '../objects/Box.js';
 
 export const PALETTE = { wall: '#d8d5c4', floor: '#7e8c79', ceiling: '#eeeee3', wood: '#b18c5f', trim: '#b3bca4', step: '#89917d' };
+export const TEACHER_DESK_SIZE = Object.freeze([1.8, 0.8, 0.7]);
 export function roomBox(name, center, size, color, options) { return new Box(name, center, size, color, options); }
 export function addLighting(scene) {
   scene.add(new AmbientLight('#ecf0dd', 0.3));

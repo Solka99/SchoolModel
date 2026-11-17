@@ -50,7 +50,7 @@ export async function checkRush({ call, evaluate, screenshot, delay, key }) {
       document.querySelector('#target-room').value=number;g.beginRush({lock:false});g.rush.start();
       const school=g.world.school,target=school.rooms.find(room=>room.number===number);
       assert(school.corridors.length===4&&school.gates.length===4,'Challenge builds four gated corridors');
-      assert(school.obstacles.carts.length===12,'Three moving carts in each corridor');
+      assert(school.obstacles.movingObstacles.length===12,'Three moving obstacles in each corridor');
       assert(!school.objects.some(object=>object.kind==='timed-passage'),'No timed passage remains');
       if(target.corridorIndex>0){
         const firstGate=school.gates[0],initialKey=school.activeKey;
@@ -89,19 +89,19 @@ export async function checkRush({ call, evaluate, screenshot, delay, key }) {
       }
       g.player.reset(new Vector3(...target.origin));g.advanceRace(step);
       assert(g.rush.state==='won','Reach selected classroom '+number);
-      return {number,remaining:g.rush.timer.remaining,keysUsed:target.corridorIndex,carts:school.obstacles.carts.length};
+      return {number,remaining:g.rush.timer.remaining,keysUsed:target.corridorIndex,movingObstacles:school.obstacles.movingObstacles.length};
     }
     g.beginRush({lock:false});g.rush.start();
-    const cart=g.world.school.obstacles.carts[0],cartPoint=cart.root.getWorldPosition(new Vector3());
-    g.player.reset(new Vector3(cartPoint.x,0,cartPoint.z));const overlapping=g.player.box.intersectsBox(cart.collider.box);g.step(step);
-    assert(g.rush.hits===1&&g.rush.penaltySeconds===2,'Cart contact costs two seconds once '+JSON.stringify({
-      overlapping,hits:g.rush.hits,state:g.rush.state,contact:cart.contact,elapsed:cart.elapsed,point:cartPoint.toArray(),
-      collider:[cart.collider.box.min.toArray(),cart.collider.box.max.toArray()],
+    const obstacle=g.world.school.obstacles.movingObstacles[0],obstaclePoint=obstacle.root.getWorldPosition(new Vector3());
+    g.player.reset(new Vector3(obstaclePoint.x,0,obstaclePoint.z));const overlapping=g.player.box.intersectsBox(obstacle.collider.box);g.step(step);
+    assert(g.rush.hits===1&&g.rush.penaltySeconds===2,'Moving obstacle contact costs two seconds once '+JSON.stringify({
+      overlapping,hits:g.rush.hits,state:g.rush.state,contact:obstacle.contact,elapsed:obstacle.elapsed,point:obstaclePoint.toArray(),
+      collider:[obstacle.collider.box.min.toArray(),obstacle.collider.box.max.toArray()],
     }));
     const runs=['101','102','103','104'].map(run);
-    return {runs,cartPenalty:'passed'};
+    return {runs,movingObstaclePenalty:'passed'};
   })()`);
-  console.log('Key progression, destinations, and moving-cart runs:', JSON.stringify(report));
+  console.log('Key progression, destinations, and moving-obstacle runs:', JSON.stringify(report));
   await screenshot('rush-victory');
   await evaluate(`schoolRush.beginRush({lock:false});schoolRush.rush.start();schoolRush.advanceRace(schoolRush.rush.timer.duration+1);`);
   assert.equal(await evaluate('schoolRush.rush.state'), 'lost', 'Timeout loses');

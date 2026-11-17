@@ -172,8 +172,8 @@ export class Game {
     const jump = this.input.consume('Space');
     // A seated body is intentionally excluded from standing physics and panel obstruction.
     this.world.update(dt, this.interactions.seated ? null : this.player.box);
-    if (this.world.school.obstacles?.carts.some(cart => cart.contact) && this.rush.penalize(2)) {
-      this.hud.toast('Cleaning cart contact · −2 seconds');
+    if (this.world.school.obstacles?.movingObstacles.some(obstacle => obstacle.contact) && this.rush.penalize(2)) {
+      this.hud.toast('Moving obstacle contact · −2 seconds');
       if (this.rush.finished) { this.finishRun(); return; }
     }
     if (this.interactions.seated) { if (jump) this.interactions.stand(); }

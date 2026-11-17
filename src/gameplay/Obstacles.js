@@ -2,6 +2,7 @@ import { Box3, BoxGeometry, Mesh, MeshStandardMaterial, TorusGeometry, Vector3 }
 import { SceneObject } from '../world/SceneObject.js';
 import { Box } from '../objects/Box.js';
 import { boxAt, penetrates } from '../physics/Aabb.js';
+import { PALETTE as C, TEACHER_DESK_SIZE } from '../world/prefabs.js';
 
 class CompositeObstacle extends SceneObject {
   constructor(name) { super(name); this.parts = []; }
@@ -18,44 +19,41 @@ function transformColliders(object) {
   for (const collider of object.colliders) collider.box.applyMatrix4(object.root.matrix);
 }
 
-export class FurnitureBlock extends CompositeObstacle {
+export class TeacherDeskObstacle extends CompositeObstacle {
   constructor(width, position = [0, 0, 0], yaw = 0) {
-    super('furniture-obstacle'); this.kind = 'furniture-obstacle';
-    this.label = 'Stacked furniture'; this.interactable = true;
-    const x = -width * 0.16, size = width * 0.55;
-    const body = this.box('stacked-desks', [x, 0.48, 0], [size, 0.96, 0.8], '#a27c49', true);
-    this.colliders.push(...body.colliders);
-    for (const y of [0.18, 0.5, 0.82]) this.box('furniture-edge', [x, y, -0.41], [size + 0.04, 0.06, 0.04], '#d1b87b');
+    super('teacher-desk-obstacle'); this.kind = 'teacher-desk-obstacle';
+    this.label = "Teacher's desk"; this.interactable = true;
+    const x = -width * 0.16;
+    const desk = this.box('teacher-desk', [x, TEACHER_DESK_SIZE[1] / 2, 0], TEACHER_DESK_SIZE, C.wood, true);
+    this.colliders.push(...desk.colliders);
     this.root.position.set(...position); this.root.rotation.y = yaw; transformColliders(this);
   }
   get canInteract() { return false; }
-  get message() { return 'Go around the furniture'; }
+  get message() { return "Go around the teacher's desk"; }
   get detail() { return 'Use the clear right lane, or jump over'; }
 }
 
-export class CleaningCart extends CompositeObstacle {
+export class MovingObstacle extends CompositeObstacle {
   constructor(width, position = [0, 0, 0], yaw = 0, phase = 0) {
-    super('cleaning-cart'); this.kind = 'cleaning-cart'; this.dynamic = true; this.alwaysUpdate = true; this.interactable = true;
-    this.label = 'Moving cleaning cart'; this.elapsed = phase; this.cooldown = 0; this.contact = false;
+    super('moving-obstacle'); this.kind = 'moving-obstacle'; this.dynamic = true; this.alwaysUpdate = true; this.interactable = true;
+    this.label = 'Moving obstacle'; this.elapsed = phase; this.cooldown = 0; this.contact = false;
     this.amplitude = width / 2 - 0.5; this.basePosition = [...position]; this.yaw = yaw;
     this.offset = Math.sin(phase * Math.PI / 3) * this.amplitude;
     this.nextPosition = new Vector3();
     this.nextCollider = new Box3();
-    this.box('cart-body', [0, 0.55, 0], [0.7, 0.85, 0.7], '#537a72');
-    this.box('cart-top', [0, 1.03, 0], [0.78, 0.1, 0.78], '#e2c484');
-    this.box('cart-handle', [0, 1.25, 0.28], [0.64, 0.08, 0.08], '#314b41');
-    for (const x of [-0.25, 0.25]) for (const z of [-0.25, 0.25]) this.box('cart-wheel', [x, 0.08, z], [0.12, 0.16, 0.14], '#30443c');
+    this.box('obstacle-body', [0, 0.55, 0], [0.7, 0.85, 0.7], '#537a72');
+    for (const x of [-0.25, 0.25]) for (const z of [-0.25, 0.25]) this.box('obstacle-wheel', [x, 0.08, z], [0.12, 0.16, 0.14], '#30443c');
     this.root.position.set(
       position[0] + Math.cos(yaw) * this.offset, position[1], position[2] - Math.sin(yaw) * this.offset,
     ); this.root.rotation.y = yaw;
     this.root.updateMatrixWorld(true);
-    this.collider = this.addCollider(this.cartBounds(this.root.position.x, this.root.position.y, this.root.position.z));
+    this.collider = this.addCollider(this.obstacleBounds(this.root.position.x, this.root.position.y, this.root.position.z));
   }
-  cartBounds(x, y, z) {
-    return new Box3(new Vector3(x - 0.39, y, z - 0.39), new Vector3(x + 0.39, y + 1.33, z + 0.39));
+  obstacleBounds(x, y, z) {
+    return new Box3(new Vector3(x - 0.35, y, z - 0.35), new Vector3(x + 0.35, y + 0.975, z + 0.35));
   }
   get canInteract() { return false; }
-  get message() { return 'Watch the cleaning cart'; }
+  get message() { return 'Watch the moving obstacle'; }
   get detail() { return 'Contact costs 2 seconds · wait or go around'; }
   update(dt, playerBox) {
     this.contact = false; this.cooldown = Math.max(0, this.cooldown - dt);
@@ -66,8 +64,8 @@ export class CleaningCart extends CompositeObstacle {
       this.basePosition[1],
       this.basePosition[2] - Math.sin(this.yaw) * nextOffset,
     );
-    this.nextCollider.min.set(this.nextPosition.x - 0.39, this.nextPosition.y, this.nextPosition.z - 0.39);
-    this.nextCollider.max.set(this.nextPosition.x + 0.39, this.nextPosition.y + 1.33, this.nextPosition.z + 0.39);
+    this.nextCollider.min.set(this.nextPosition.x - 0.35, this.nextPosition.y, this.nextPosition.z - 0.35);
+    this.nextCollider.max.set(this.nextPosition.x + 0.35, this.nextPosition.y + 0.975, this.nextPosition.z + 0.35);
     if (playerBox && penetrates(playerBox, this.nextCollider)) {
       if (this.cooldown <= 0) { this.contact = true; this.cooldown = 2.5; }
       return true;
@@ -139,7 +137,7 @@ export class KeyPickup extends SceneObject {
 }
 
 export function createObstacles(layout, game, corridors) {
-  const width = layout.params.corridorWidth, obstacles = [], carts = [];
+  const width = layout.params.corridorWidth, obstacles = [], movingObstacles = [];
   for (const corridor of corridors) {
     const { index, length, yaw, center } = corridor;
     const positions = [-length * 0.23, 0, length * 0.23];
@@ -149,8 +147,8 @@ export function createObstacles(layout, game, corridors) {
         0,
         center[2] + Math.cos(yaw) * localZ,
       ];
-      const cart = new CleaningCart(width, position, yaw, lane * 0.8 + index * 0.45);
-      carts.push(cart); obstacles.push(cart);
+      const movingObstacle = new MovingObstacle(width, position, yaw, lane * 0.8 + index * 0.45);
+      movingObstacles.push(movingObstacle); obstacles.push(movingObstacle);
     }
   }
   const first = corridors[0];
@@ -159,7 +157,7 @@ export function createObstacles(layout, game, corridors) {
     0,
     first.center[2] + Math.cos(first.yaw) * (-first.length * 0.34),
   ];
-  const furniture = new FurnitureBlock(width, furniturePosition, first.yaw);
-  obstacles.push(furniture);
-  return { objects: obstacles, carts, furniture };
+  const teacherDesk = new TeacherDeskObstacle(width, furniturePosition, first.yaw);
+  obstacles.push(teacherDesk);
+  return { objects: obstacles, movingObstacles, teacherDesk };
 }
